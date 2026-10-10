@@ -62,4 +62,4 @@ There are now 55 selectable sprite IDs per city. Existing IDs 1–11 retain thei
 
 ## Cinematic entry
 
-Clicking the satellite map triggers a 1.95-second transition: two camera flights toward the selected coordinate, a cloud veil, then a descending camera in the illustrative street world. The clicked coordinate sets the satellite camera target only, not the fictional street geometry. Repeated inputs are blocked during handoff; Escape cancels the remaining animation. Reduced-motion users enter immediately. Tests cover timed handoff, repeat-click suppression, and cancellation.
+Clicking the satellite map triggers a 1.8-second continuous zoom toward the selected coordinate. During the final 0.8 seconds, the satellite layer blends into the moving street camera. There are no clouds, flashes, or intermediate cuts. The clicked coordinate sets the satellite camera target only, not the fictional street geometry. Repeated inputs are blocked during handoff; Escape cancels the remaining animation. Reduced-motion users enter immediately. Tests cover timed handoff, repeat-click suppression, and cancellation.

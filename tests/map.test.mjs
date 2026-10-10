@@ -50,6 +50,6 @@ test('street camera cannot expose empty space at world edges on mobile or deskto
 test('cinematic transition enters only at handoff, blocks repeat clicks, and can be canceled',()=>{
  const s=setup(true);s.controller.open();s.click();assert.equal(s.entered(),0);assert.equal(s.controller.transitioning,true);assert.equal(s.overlay.hidden,false);
  assert.equal(s.controller.click(),false);s.advance(650);assert.equal(s.entered(),0);
- s.advance(1250);assert.equal(s.entered(),1);s.advance(1950);assert.equal(s.controller.transitioning,false);assert.equal(s.overlay.hidden,true);
+ s.advance(1000);assert.equal(s.entered(),1);s.advance(1800);assert.equal(s.controller.transitioning,false);assert.equal(s.overlay.hidden,true);
  s.controller.open();s.click();s.controller.close();s.advance(2000);assert.equal(s.entered(),1);assert.equal(s.overlay.hidden,true);
 });

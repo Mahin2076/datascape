@@ -3,22 +3,23 @@ export function createCityOverview({ onEnter, onError, reducedMotion = false, le
   let active = false, map = null, transitioning = false, handingOff = false, timers = [];
   function cancelTransition(){
     timers.forEach(unschedule);timers=[];transitioning=false;map?.stop?.();
-    if(overlay)overlay.hidden=true;
+    if(overlay)overlay.hidden=true;element.classList?.remove('zoom-handoff');if(!active)element.hidden=true;
   }
-  function close(){if(!handingOff)cancelTransition();active=false;element.hidden=true;}
+  function close(){if(handingOff){active=false;return;}cancelTransition();active=false;element.hidden=true;}
   function enter(latlng){
     if(!active||transitioning)return;
     if(reducedMotion){close();onEnter({animated:false});return;}
     transitioning=true;
-    const target=latlng||map.getCenter(),firstZoom=Math.min(18,map.getZoom()+2),finalZoom=Math.min(18,firstZoom+3);
+    const target=latlng||map.getCenter(),finalZoom=Math.min(18,map.getZoom()+4);
     if(overlay)overlay.hidden=false;
-    map.flyTo(target,firstZoom,{duration:.65,easeLinearity:.25});
-    timers.push(schedule(()=>map.flyTo(target,finalZoom,{duration:.65,easeLinearity:.2}),650));
+    // One uninterrupted flight. Blend the live map into the moving street camera.
+    map.flyTo(target,finalZoom,{duration:1.8,easeLinearity:.2});
     timers.push(schedule(()=>{
-      active=false;element.hidden=true;handingOff=true;
+      active=false;handingOff=true;
       try{onEnter({animated:true,latlng:target});}finally{handingOff=false;}
-    },1250));
-    timers.push(schedule(()=>{transitioning=false;timers=[];if(overlay)overlay.hidden=true;},1950));
+      element.classList?.add('zoom-handoff');
+    },1000));
+    timers.push(schedule(()=>{element.hidden=true;element.classList?.remove('zoom-handoff');transitioning=false;timers=[];if(overlay)overlay.hidden=true;},1800));
   }
   function open(){
     if(!leaflet){onError();return false;}

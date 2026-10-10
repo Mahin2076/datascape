@@ -58,7 +58,7 @@ function showComparison(){
 }
 function enterStreet(animated=false){
  stopTimeline();const saved=streetPositions.get(current);travel(current);zoom=1.65;
- if(saved){player.x=saved.x;player.y=saved.y;cam.x=player.x;cam.y=player.y-28;}if(animated){cam.z=.65;}updateMapUI();canvas.focus();
+ if(saved){player.x=saved.x;player.y=saved.y;cam.x=player.x;cam.y=player.y-28;}if(animated){cam.z=1.05;}updateMapUI();canvas.focus();
 }
 function zoomMap(delta){
  if(cityMap.active){cityMap.changeZoom(delta);return;}
