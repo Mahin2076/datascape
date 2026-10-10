@@ -5,7 +5,5 @@
 .openai/
 .DS_Store
 node_modules/
-test-results/
-playwright-report/
 *.zip
 *.tar.gz
