@@ -1,4 +1,4 @@
-import {researchNeighborhood} from './cala.js';
+import {cachedResearch} from './cala.js';
 import {createHash} from 'node:crypto';
 import {generateText,Output,jsonSchema} from 'ai';
 import {openai} from '@ai-sdk/openai';
@@ -15,7 +15,7 @@ export async function neighborhoodChat(input,{signal,generate=generateText}={}) 
   const key=createHash('sha256').update(JSON.stringify(context)).digest('hex');
   const previous=cache.get(key);
   if(previous&&Date.now()-previous.at<15*60*1000) return {...previous.value,cached:true};
-  const research=context.neighborhood?await researchNeighborhood(context.question,{signal}):{status:'unavailable',sources:[]};
+  const research=context.neighborhood?(cachedResearch(context.question)||{status:'pending',sources:[]}):{status:'unavailable',sources:[]};
   if(research.status==='available')context.research={content:research.content,sources:research.sources};
   const {output}=await generate({model:openai(MODEL),system,prompt:JSON.stringify(context),
     output:Output.object({schema:schemaFor(context)}),maxOutputTokens:Math.min(12000,800+context.residents.length*130),

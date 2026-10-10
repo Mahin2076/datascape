@@ -1,3 +1,5 @@
+import {researchNeighborhood} from './cala.js';
+import {buildContext} from './context.js';
 import {createServer} from 'node:http';
 import {readFile,realpath} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -15,20 +17,20 @@ export function createApp({chat=neighborhoodChat,configured=Boolean(process.env.
     try {
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/api/health') return send(res,200,{configured,model:configured?MODEL:null});
-      if(url.pathname==='/api/neighborhood-chat') {
+      if(url.pathname==='/api/neighborhood-chat'||url.pathname==='/api/neighborhood-research') {
         if(req.method!=='POST') return send(res,405,{error:'Use POST.'});
         if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host) return send(res,403,{error:'Use chat from this app.'});
         if(!req.headers['content-type']?.startsWith('application/json')) return send(res,415,{error:'Send JSON.'});
         if(!configured) return send(res,503,{error:'Live chat is not configured on this server.'});
         while(calls.length&&Date.now()-calls[0]>60000) calls.shift();
-        if(active>=2||calls.length>=10){res.setHeader('Retry-After','15');return send(res,429,{error:'The neighborhood is busy. Try again shortly.'});}
+        if(active>=4||calls.length>=20){res.setHeader('Retry-After','15');return send(res,429,{error:'The neighborhood is busy. Try again shortly.'});}
         const chunks=[];let bytes=0;
         for await(const chunk of req){bytes+=chunk.length;if(bytes>20000)return send(res,413,{error:'Question is too large.'});chunks.push(chunk);}
         let input;try{input=JSON.parse(Buffer.concat(chunks).toString());}catch{return send(res,400,{error:'Invalid JSON.'});}
         const controller=new AbortController();
         res.on('close',()=>{if(!res.writableEnded)controller.abort();});
         calls.push(Date.now());active++;
-        try {return send(res,200,await chat(input,{signal:controller.signal}));}
+        try {if(url.pathname==='/api/neighborhood-research'){const context=buildContext(input);return send(res,200,await researchNeighborhood(context.question,{signal:controller.signal}));}return send(res,200,await chat(input,{signal:controller.signal}));}
         catch(error){
           if(error instanceof InputError)return send(res,400,{error:error.message});
           // Do not serialize provider errors: they may include request internals.

@@ -1,7 +1,9 @@
 const cache=new Map();
+const queryFor=question=>`Rincon Hill, San Francisco, near The Infinity at 318 Spear Street. Housing research question: ${question.slice(0,600)}. Include source references. Do not guess individual unit prices if unavailable.`;
+export function cachedResearch(question){const hit=cache.get(queryFor(question));return hit&&Date.now()-hit.at<900000?{...hit.value,cached:true}:null;}
 export async function researchNeighborhood(question,{signal,fetcher=fetch,key=process.env.CALA_API_KEY}={}){
  if(!key)return {status:'unavailable',sources:[],content:''};
- const query=`Rincon Hill, San Francisco, near The Infinity at 318 Spear Street. Housing research question: ${question.slice(0,600)}. Include source references. Do not guess individual unit prices if unavailable.`;
+ const query=queryFor(question);
  const cached=cache.get(query);if(cached&&Date.now()-cached.at<900000)return {...cached.value,cached:true};
  try{
   const response=await fetcher('https://api.cala.ai/v1/knowledge/search',{method:'POST',headers:{'Content-Type':'application/json','X-API-KEY':key},body:JSON.stringify({input:query,explainability:false,return_entities:false}),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(25000)]):AbortSignal.timeout(25000)});
