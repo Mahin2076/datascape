@@ -96,9 +96,14 @@ export function TashaCard({ state, at }) {
             <Line label="Income / month" from={n.income} to={n.income} />
             <Line label="Rent" from={n.rent} to={n.raised} changed={raised} warn />
             <Line label="Left after rent" from={n.left} to={n.leftRaised} changed={raised} warn />
-            <div className="tc-bar" role="img" aria-label={`Rent is ${pct(ratio, 0)} of income`}>
-              <motion.i animate={{ width: `${ratio * 100}%` }} initial={false} transition={{ duration: 1, delay: raised ? 0.5 : 0, ease: EASE }} />
-              <span style={{ left: '30%' }} />
+            <div className="budget-bar" role="img" aria-label={`Rent is ${pct(ratio, 0)} of income; ${money(raised ? n.leftRaised : n.left)} is left`}>
+              <motion.span className="seg rent" initial={false} animate={{ width: `${ratio * 100}%` }} transition={{ duration: 1.1, delay: raised ? 0.5 : 0, ease: EASE }}>
+                rent
+              </motion.span>
+              <motion.span className="seg left" initial={false} animate={{ width: `${(1 - ratio) * 100}%` }} transition={{ duration: 1.1, delay: raised ? 0.5 : 0, ease: EASE }}>
+                left over
+              </motion.span>
+              <span className="line30" style={{ left: '30%' }}><em>30%</em></span>
             </div>
             <div className="tc-foot">
               <span>Rent is <b className="num">{pct(ratio, 0)}</b> of income</span>

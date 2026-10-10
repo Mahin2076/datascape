@@ -8,13 +8,25 @@ import { projection } from '../../dist/map/places.js';
 
 const C = facts.cities;
 // Same order as the five blocks in the app's "Compare cities" view.
-export const STATS = ['sf', 'nyc', 'austin', 'chicago', 'seattle'].map((id) => ({
+export const STATS = ['sf', 'nyc', 'austin', 'chicago', 'seattle'].map((id, mapIndex) => ({
+  mapIndex,
   name: C[id].name,
   burden30: C[id].burden30,
+  burden50: C[id].burden50,
+  moe30: C[id].burden30Moe,
   rentGrowth: C[id].growth.rent,
+  rentMoe: C[id].growth.rentMoe,
   incomeGrowth: C[id].growth.renterIncome,
+  incomeMoe: C[id].growth.renterIncomeMoe,
   verdict: C[id].growth.verdict,
 }));
+const SF_SERIES = data.cities.find((c) => c.id === 'sf').data.map((d) => ({ year: d.year, value: d.rent, period: d.period }));
+export const CHARTS = {
+  rentline: { points: SF_SERIES },
+  people: { share: C.sf.burden30, moe: C.sf.burden30Moe, burdened: [1, 4, 6, 8] },
+  citybars: { rows: [...STATS].sort((a, b) => b.burden30 - a.burden30).map((s) => ({ name: s.name, mapIndex: s.mapIndex, share30: s.burden30, share50: s.burden50, moe30: s.moe30 })) },
+  dumbbell: { rows: STATS.map((s) => ({ name: s.name, mapIndex: s.mapIndex, rent: s.rentGrowth, rentMoe: s.rentMoe, income: s.incomeGrowth, incomeMoe: s.incomeMoe, verdict: s.verdict })) },
+};
 const SF_MEDIAN = data.cities.find((c) => c.id === 'sf').data.at(-1);
 
 export const PLACES = {
@@ -34,8 +46,10 @@ const satUnder = (place, cam) => {
 // Layers slide: the scene's middle sits at stage x ~1000, right of the text card.
 const LAYERS_CAM = { x: STREET.w / 2 - 200 / match('beachchalet', 17), y: STREET.h / 2, z: match('beachchalet', 17) };
 
-const MAP = { x: 472, y: 566, z: 0.72 };
-const FADE_IN_AFTER_DIVE = { delay: 1, duration: 0.8 };
+// Compare-cities camera that leaves the left ~700px for the chart card.
+const MAP_WIDE = { x: 174, y: 576, z: 0.573 };
+// The pixel street starts growing in once the dive is well underway.
+const FADE_IN_AFTER_DIVE = { delay: 1.15, duration: 1.1 };
 
 /** Slides need the resident's home position, which comes from the mapped scene. */
 export function buildSlides(home) {
@@ -59,15 +73,16 @@ export function buildSlides(home) {
       panel: 'card',
       sat: { center: PLACES.roosevelt.center, zoom: 15.4, duration: 2.4 },
       headline: 'Rent is usually a number on a chart.',
-      body: `San Francisco’s median rent is ${money(SF_MEDIAN.rent)} a month. It’s a real number, but it’s hard to picture anyone behind it.`,
+      viz: 'rentline',
+      body: `San Francisco’s median rent has climbed to ${money(SF_MEDIAN.rent)} a month. It’s a real number, but it’s hard to picture anyone behind it.`,
       foot: `Census ACS ${SF_MEDIAN.period} (5-year), table B25064, median gross rent.`,
       notes: 'The satellite flies into Corona Heights while you say it.',
     },
     {
       id: 'street',
       panel: 'card',
-      sat: { center: PLACES.roosevelt.center, zoom: 18, duration: 1.8 },
-      street: { place: 'roosevelt', camera: middle('roosevelt', 18), fade: FADE_IN_AFTER_DIVE },
+      sat: { center: PLACES.roosevelt.center, zoom: 18, duration: 2.2 },
+      street: { place: 'roosevelt', camera: middle('roosevelt', 18), fade: FADE_IN_AFTER_DIVE, follow: true },
       headline: 'So we put it on a street.',
       body: 'Click anywhere in San Francisco and DataScape builds that block from OpenStreetMap: the real roads, parks and courts, drawn as a pixel neighborhood people walk around in.',
       foot: 'Imagery: Esri, Vantor, Earthstar Geographics. Map data © OpenStreetMap contributors.',
@@ -104,7 +119,6 @@ export function buildSlides(home) {
       bubble: { text: 'We’d make it work, but the kids would notice the cutbacks.', at: bubbleAt },
       headline: 'Next year, rent goes up 10%.',
       body: `That’s ${money(N.raised - N.rent)} more every month, and it has to come from somewhere.`,
-      foot: 'We wrote Tasha’s reaction ourselves. It isn’t AI and it isn’t a real quote.',
       notes: 'Pause while the numbers tick and Tasha talks.',
     },
     {
@@ -114,6 +128,7 @@ export function buildSlides(home) {
       street: { place: 'roosevelt', camera: street, highlight: true, tags: { burdened: [1, 4, 6, 8] } },
       headline: 'Tasha isn’t unusual.',
       body: 'Take the ten people walking closest to Tasha. If they’re typical San Francisco renters, about four of them spend 30% or more of their income on rent.',
+      viz: 'people',
       foot: `Census ACS 2024 (1-year), table B25070. San Francisco: ${(C.sf.burden30 * 100).toFixed(1)}% ± ${(C.sf.burden30Moe * 100).toFixed(1)}.`,
       notes: 'The walkers are decorative; the share is the Census number. Say “if they’re typical”.',
     },
@@ -121,7 +136,7 @@ export function buildSlides(home) {
       id: 'park',
       panel: 'card',
       sat: { center: PLACES.beachchalet.center, zoom: 18, duration: 3.2 },
-      street: { place: 'beachchalet', camera: middle('beachchalet', 18), fade: { delay: 2.8, duration: 0.8 }, fadeOut: 0.5 },
+      street: { place: 'beachchalet', camera: middle('beachchalet', 18), fade: { delay: 2.7, duration: 1.1 }, fadeOut: 0.6, follow: true },
       headline: 'It works anywhere in the city.',
       body: 'Here’s the west end of Golden Gate Park. The soccer fields, paths and trees are where the map says they are.',
       foot: 'Map data © OpenStreetMap contributors. Trees and building art are illustrative.',
@@ -131,7 +146,7 @@ export function buildSlides(home) {
       id: 'layers',
       panel: 'card',
       sat: { center: satUnder('beachchalet', LAYERS_CAM), zoom: 17, duration: 1.4 },
-      street: { place: 'beachchalet', camera: LAYERS_CAM, mode: 'layers', modeDelay: 1300 },
+      street: { place: 'beachchalet', camera: LAYERS_CAM, mode: 'layers', modeDelay: 1300, follow: true },
       headline: 'Three kinds of data, one place.',
       steps: [
         ['Satellite imagery', 'for the overview', 0.4],
@@ -144,23 +159,25 @@ export function buildSlides(home) {
     },
     {
       id: 'cities',
-      panel: 'side',
+      panel: 'wide',
       sat: { center: satUnder('beachchalet', LAYERS_CAM), zoom: 17, duration: 0 },
-      compare: { camera: MAP, light: 0.1, signs: 'burden', focusCity: 1 },
+      compare: { camera: MAP_WIDE, light: 0.05, signs: 'tags-burden' },
       headline: 'In New York, it’s over half.',
-      body: `We asked the same question in five cities. New York comes in at ${Math.round(C.nyc.burden30 * 100)}%, and San Francisco is actually the lowest.`,
+      viz: 'citybars',
+      body: 'Same question, five cities. San Francisco, where incomes are high, comes in lowest.',
       foot: 'Census ACS 2024 (1-year), table B25070, city boundaries.',
       notes: 'This is the app’s Compare cities view. San Francisco is lowest because incomes there are high.',
     },
     {
       id: 'surprise',
-      panel: 'side',
+      panel: 'wide',
       sat: { center: satUnder('beachchalet', LAYERS_CAM), zoom: 17, duration: 0 },
-      compare: { camera: { ...MAP }, light: 0.3, signs: 'growth' },
+      compare: { camera: { ...MAP_WIDE }, light: 0.2, signs: 'tags-growth' },
       headline: 'The data surprised us.',
-      body: 'We expected rent to be climbing faster than income. Compared with renters’ incomes, it mostly wasn’t clear, and in New York incomes grew faster. So we show where people are now instead of claiming a trend.',
+      viz: 'dumbbell',
+      body: 'We expected rent to be outrunning income. Next to renters’ incomes, most gaps are too small to call, and in New York incomes grew faster. So we show where people are now, not a trend.',
       foot: 'Census ACS 1-year, 2021 to 2024. “Too close to call” means the gap is inside the margin of error.',
-      notes: 'Same signboards, new question. Mostly no clear answer, and that’s the honest result.',
+      notes: 'Same map, new question. Mostly no clear answer, and that’s the honest result.',
     },
     {
       id: 'close',

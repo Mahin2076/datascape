@@ -5,10 +5,12 @@ import artUrl from '../../../dist/assets/world-atlas.png';
 import charsUrl from '../../../dist/assets/sprites.png';
 import data from '../../../dist/assets/data.json';
 import { H, ORIGINS, W, buildWorld, drawCharacter, npcPosition, paintGround } from './world.js';
+import { backingScale, createCamera } from './camera.js';
 
 export const STAGE = { w: 1600, h: 900 };
 const LAMPS = new Set(['lamp', 'lampMirror', 'streetLight']);
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+const TAG_VERDICT = { income_outpaced: ['income grew faster', '#80c6bb'], rent_outpaced: ['rent grew faster', '#e9a08a'], too_close_to_call: ['too close to call', '#d3af65'] };
 
 const images = {};
 function loadImage(src) {
@@ -23,7 +25,6 @@ function loadImage(src) {
 
 const fitZoom = () => Math.min(STAGE.w / (W + 40), STAGE.h / (H + 40));
 const resolveZ = (z) => (z === 'fit' ? fitZoom() : z);
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
 const money = (n) => `$${Math.round(n).toLocaleString('en-US')}`;
@@ -47,10 +48,10 @@ function board(ctx, x, y, w, h) {
  * the camera flies there on a timed ease, light and signs cross-fade, and the same
  * residents keep walking the whole time.
  */
-export default function PixelWorld({ shot, stats, active = true }) {
+export default function PixelWorld({ shot, stats, active = true, focus = null }) {
   const ref = useRef(null);
-  const live = useRef({ shot, stats, active });
-  live.current = { shot, stats, active };
+  const live = useRef({ shot, stats, active, focus });
+  live.current = { shot, stats, active, focus };
   const reduced = useReducedMotion();
 
   useEffect(() => {
@@ -63,9 +64,10 @@ export default function PixelWorld({ shot, stats, active = true }) {
       const world = buildWorld(atlas);
       const ground = paintGround(atlas, art);
       const lamps = world.props.filter((p) => LAMPS.has(p.n));
-      const cam = { x: W / 2, y: H / 2, z: fitZoom() };
-      const flight = { from: null, to: null, t0: 0, dur: 1 };
+      const cam = createCamera({ x: W / 2, y: H / 2, z: fitZoom() });
+      let shotAt = 0;
       const fade = { signs: 'none', signsAt: 0, tagsKey: '', tagsAt: 0, light: 0 };
+      const lift = ORIGINS.map(() => 0); // per-city pop toward the chart's focus
       let lastShot = null;
       let last = performance.now();
       let clock = 0;
@@ -76,34 +78,27 @@ export default function PixelWorld({ shot, stats, active = true }) {
         if (!reduced) clock += dt;
         const { shot: s, stats } = live.current;
 
-        // Camera flight: timed ease, zoom interpolated in log space.
+        // Spring camera: momentum carries across slide changes.
+        const target = { x: s.camera.x, y: s.camera.y, z: resolveZ(s.camera.z) };
         if (s !== lastShot) {
-          const to = { x: s.camera.x, y: s.camera.y, z: resolveZ(s.camera.z) };
-          const dist = Math.hypot(to.x - cam.x, to.y - cam.y);
-          const zoomTravel = Math.abs(Math.log(to.z / cam.z));
-          flight.from = { ...cam };
-          flight.to = to;
-          flight.t0 = now;
-          flight.dur = lastShot === null || reduced ? 0 : Math.min(2600, Math.max(1100, 900 + dist * 0.9 + zoomTravel * 520));
-          if (s.signs !== fade.signs) { fade.signs = s.signs; fade.signsAt = now + flight.dur * 0.6; }
+          if (lastShot === null || reduced) cam.jump(target);
+          shotAt = now;
+          if (s.signs !== fade.signs) { fade.signs = s.signs; fade.signsAt = now + (lastShot === null ? 0 : 650); }
           const tagsKey = JSON.stringify(s.tags ?? null);
-          if (tagsKey !== fade.tagsKey) { fade.tagsKey = tagsKey; fade.tagsAt = now + flight.dur * 0.8; }
+          if (tagsKey !== fade.tagsKey) { fade.tagsKey = tagsKey; fade.tagsAt = now + 900; }
           lastShot = s;
         }
-        const p = flight.dur === 0 ? 1 : clamp01((now - flight.t0) / flight.dur);
-        const e = easeInOut(p);
-        cam.x = flight.from.x + (flight.to.x - flight.from.x) * e;
-        cam.y = flight.from.y + (flight.to.y - flight.from.y) * e;
-        cam.z = Math.exp(Math.log(flight.from.z) + (Math.log(flight.to.z) - Math.log(flight.from.z)) * e);
+        if (reduced) cam.jump(target);
+        else cam.step(dt, target);
         // Slow drift on wide shots once the camera has arrived, so the city never sits still.
-        const settle = clamp01((now - flight.t0 - flight.dur) / 1500);
+        const settle = clamp01((now - shotAt - 1600) / 1500);
         const drift = reduced ? 0 : (s.drift ?? 0) * settle;
-        const viewX = cam.x + Math.sin((now - flight.t0) / 5200) * drift;
-        const viewY = cam.y + Math.cos((now - flight.t0) / 7100) * drift * 0.4;
+        const viewX = cam.x + Math.sin((now - shotAt) / 5200) * drift;
+        const viewY = cam.y + Math.cos((now - shotAt) / 7100) * drift * 0.4;
         fade.light += ((s.light ?? 0) - fade.light) * (reduced ? 1 : Math.min(1, dt * 1.6));
         if (!live.current.active) { raf = requestAnimationFrame(frame); return; }
 
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const dpr = backingScale(canvas);
         const w = canvas.clientWidth;
         const h = canvas.clientHeight;
         if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
@@ -216,6 +211,61 @@ export default function PixelWorld({ shot, stats, active = true }) {
               ctx.fillRect(pos.x - 1, y - 10, 2, 4);
               ctx.fillRect(pos.x - 1, y - 4, 2, 2);
             }
+            ctx.globalAlpha = 1;
+          });
+        }
+
+        // City tags with the number the chart is showing. The city the chart is on pops
+        // forward; for burden, that share of its walkers carry the red marker.
+        if ((s.signs === 'tags-burden' || s.signs === 'tags-growth') && stats) {
+          const focusIdx = live.current.focus ?? null;
+          const burden = s.signs === 'tags-burden';
+          ORIGINS.forEach(([ox, oy], i) => {
+            const st = stats[i];
+            const k = easeOut(clamp01((now - fade.signsAt - i * 110) / 800));
+            if (k <= 0) return;
+            lift[i] += ((focusIdx === i ? 1 : 0) - lift[i]) * (reduced ? 1 : Math.min(1, dt * 7));
+            const l = lift[i];
+            if (burden && l > 0.02) {
+              const marked = Math.round(st.burden30 * 10);
+              walkers.filter((wk) => wk.n.city === i).slice(0, 10).forEach(({ pos }, j) => {
+                const y = pos.y - 24 + (reduced ? 0 : Math.sin(now / 240 + j) * 1.2);
+                const size = j < marked ? 12 : 6;
+                ctx.globalAlpha = l * k;
+                ctx.fillStyle = '#1b2620';
+                ctx.fillRect(pos.x - size / 2 - 1, y - size - 1, size + 2, size + 2);
+                ctx.fillStyle = j < marked ? '#d9583a' : '#5fae9c';
+                ctx.fillRect(pos.x - size / 2, y - size, size, size);
+              });
+            }
+            const value = burden ? `${Math.round(st.burden30 * 100 * k)}%` : TAG_VERDICT[st.verdict][0];
+            ctx.globalAlpha = k;
+            ctx.save();
+            ctx.translate(ox + 208, oy + 170 - l * 18 + (1 - k) * 16);
+            const sc = (focusIdx === null || focusIdx === i ? 1 : 0.86) + 0.14 * l;
+            ctx.scale(sc, sc);
+            ctx.textAlign = 'center';
+            ctx.font = `bold 26px ${MONO}`;
+            const nameW = ctx.measureText(st.name).width;
+            ctx.font = `bold ${burden ? 40 : 22}px ${MONO}`;
+            const tagW = Math.max(nameW, ctx.measureText(value).width) + 40;
+            const tagH = burden ? 104 : 86;
+            ctx.fillStyle = '#00000033';
+            ctx.beginPath(); ctx.roundRect(-tagW / 2 + 4, -tagH / 2 + 6, tagW, tagH, 12); ctx.fill();
+            ctx.fillStyle = '#1b2620';
+            ctx.beginPath(); ctx.roundRect(-tagW / 2, -tagH / 2, tagW, tagH, 12); ctx.fill();
+            if (l > 0.02) {
+              ctx.strokeStyle = `rgba(233,160,138,${l})`;
+              ctx.lineWidth = 4;
+              ctx.stroke();
+            }
+            ctx.fillStyle = '#f0efdf';
+            ctx.font = `bold 26px ${MONO}`;
+            ctx.fillText(st.name, 0, -tagH / 2 + 36);
+            ctx.fillStyle = burden ? '#e9a08a' : TAG_VERDICT[st.verdict][1];
+            ctx.font = `bold ${burden ? 40 : 22}px ${MONO}`;
+            ctx.fillText(value, 0, tagH / 2 - (burden ? 18 : 20));
+            ctx.restore();
             ctx.globalAlpha = 1;
           });
         }

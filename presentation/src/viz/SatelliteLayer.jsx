@@ -16,7 +16,7 @@ export function pxPerMeter(zoom, lat) {
  * The satellite map from the app's overview, persistent for the whole deck and not
  * interactive: each slide hands it a view and it flies there.
  */
-export default function SatelliteLayer({ view }) {
+export default function SatelliteLayer({ view, liveRef }) {
   const el = useRef(null);
   const map = useRef(null);
   const reduced = useReducedMotion();
@@ -36,10 +36,19 @@ export default function SatelliteLayer({ view }) {
       zoomAnimation: true,
     });
     m.attributionControl.setPrefix(false);
-    L.tileLayer(TILES, { maxZoom: 19, attribution: ATTRIBUTION }).addTo(m);
+    // A coarse backdrop (one or two z12 tiles, scaled) under the detailed layer, so a
+    // flight shows soft imagery instead of empty gaps while the sharp tiles arrive.
+    // It requests only what is on screen: no prefetching.
+    L.tileLayer(TILES, { maxZoom: 19, maxNativeZoom: 12, className: 'sat-backdrop' }).addTo(m);
+    L.tileLayer(TILES, { maxZoom: 19, keepBuffer: 3, attribution: ATTRIBUTION }).addTo(m);
     m.setView(view.center, view.zoom, { animate: false });
     map.current = m;
-    return () => { m.remove(); map.current = null; };
+    // Shared with the street layer so it can ride the exact same camera mid-flight.
+    const live = { map: m, moving: false };
+    m.on('movestart', () => { live.moving = true; });
+    m.on('moveend', () => { live.moving = false; });
+    if (liveRef) liveRef.current = live;
+    return () => { m.remove(); map.current = null; if (liveRef) liveRef.current = null; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

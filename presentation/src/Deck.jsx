@@ -4,10 +4,12 @@ import PixelWorld, { STAGE } from './viz/PixelWorld.jsx';
 import SatelliteLayer from './viz/SatelliteLayer.jsx';
 import StreetWorld, { homeOf, STREET } from './viz/StreetWorld.jsx';
 import { Bubble, TashaCard } from './actors.jsx';
-import { STATS, buildSlides } from './story.jsx';
+import { CHARTS, STATS, buildSlides } from './story.jsx';
+import { CityBars, GapDumbbell, PeopleRow, RentLine } from './viz/charts.jsx';
 
 const EASE = [0.16, 1, 0.3, 1];
-const LAYOUT = { type: 'spring', stiffness: 110, damping: 22, mass: 1 };
+// Soft spring for the card changing shape; text fades without blur so it stays crisp.
+const LAYOUT = { type: 'spring', stiffness: 90, damping: 20, mass: 1 };
 const COMPARE_IDLE = { camera: { x: 472, y: 566, z: 0.72 }, light: 0, signs: 'none' };
 const SLIDE_COUNT = buildSlides({ x: STREET.w / 2, y: STREET.h / 2 }).length;
 
@@ -45,27 +47,37 @@ function Scrims({ variant }) {
     hero: 'linear-gradient(90deg, #111a15e6 0%, #111a15a0 46%, #111a1500 78%)',
     card: 'linear-gradient(90deg, #111a1566 0%, #111a1500 48%)',
     side: 'linear-gradient(90deg, #111a1599 0%, #111a1500 30%)',
+    wide: 'linear-gradient(90deg, #111a15aa 0%, #111a1500 50%)',
   };
   return Object.entries(layers).map(([k, bg]) => (
     <motion.div key={k} aria-hidden="true" className="layer scrim" style={{ background: bg, pointerEvents: 'none' }} initial={false} animate={{ opacity: variant === k ? 1 : 0 }} transition={{ duration: 1.2, ease: EASE }} />
   ));
 }
 
+function PanelViz({ kind, onFocus }) {
+  if (kind === 'people') return <PeopleRow {...CHARTS.people} />;
+  if (kind === 'citybars') return <CityBars {...CHARTS.citybars} onFocus={onFocus} />;
+  if (kind === 'dumbbell') return <GapDumbbell {...CHARTS.dumbbell} onFocus={onFocus} />;
+  return null;
+}
+
 /** One text card for the whole deck: it reshapes between layouts while its words swap. */
-function Panel({ slide, replay }) {
+function Panel({ slide, replay, onFocus }) {
   const v = slide.panel;
+  const inPanel = slide.viz && slide.viz !== 'rentline';
   return (
     <motion.div layout transition={LAYOUT} className={`panel panel-${v}`}>
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.div
           key={`${slide.id}-${replay}`}
           layout="position"
-          initial={{ opacity: 0, y: 18, filter: 'blur(6px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, y: -12, filter: 'blur(6px)', transition: { duration: 0.25 } }}
-          transition={{ duration: 0.7, ease: EASE, delay: 0.35 }}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8, transition: { duration: 0.22, ease: 'easeIn' } }}
+          transition={{ duration: 0.75, ease: EASE, delay: 0.3 }}
         >
-          <motion.h1 layoutId="headline" className="headline" transition={LAYOUT}>{slide.headline}</motion.h1>
+          <h1 className="headline">{slide.headline}</h1>
+          {inPanel && <div className="panel-viz"><PanelViz kind={slide.viz} onFocus={onFocus} /></div>}
           {slide.steps && (
             <ol className="steps">
               {slide.steps.map(([title, desc, at]) => (
@@ -94,21 +106,9 @@ export default function Deck() {
   const slide = slides[index];
   const prev = useRef(slide);
 
-  // Street layer: keep the last street shot while hidden, and when the place changes
-  // fade the old place out before switching scenes.
-  const [streetShot, setStreetShot] = useState(slide.street ?? slides.find((s) => s.street).street);
-  // Computed once per slide (prev still points at the previous slide during this render).
-  const placeChange = useMemo(() => Boolean(slide.street && prev.current.street && slide.street.place !== prev.current.street.place), [slide]);
-  const streetActive = useMemo(() => Boolean(slide.street || prev.current.street), [slide]);
-  useEffect(() => {
-    if (!slide.street) return undefined;
-    if (placeChange) {
-      const t = setTimeout(() => setStreetShot(slide.street), (slide.street.fadeOut ?? 0.5) * 1000 + 60);
-      return () => clearTimeout(t);
-    }
-    setStreetShot(slide.street);
-    return undefined;
-  }, [slide]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Street layer: keep showing the last street shot while it shrinks away.
+  const lastStreet = useRef(slide.street ?? slides.find((x) => x.street).street);
+  if (slide.street) lastStreet.current = slide.street;
   useEffect(() => { prev.current = slide; }, [slide]);
 
   const lastCompare = useRef(COMPARE_IDLE);
@@ -116,20 +116,7 @@ export default function Deck() {
   const lastCardAt = useRef(slide.cardAt ?? { x: 1100, y: 110 });
   if (slide.cardAt) lastCardAt.current = slide.cardAt;
 
-  const streetAnim = useMemo(() => {
-    const fade = slide.street?.fade;
-    return !slide.street
-    ? { opacity: 0, transition: { duration: 0.6 } }
-    : placeChange
-      ? {
-          opacity: [null, 0, 0, 1],
-          transition: {
-            duration: fade.delay + fade.duration,
-            times: [0, (slide.street.fadeOut ?? 0.5) / (fade.delay + fade.duration), fade.delay / (fade.delay + fade.duration), 1],
-          },
-        }
-      : { opacity: 1, transition: { delay: fade?.delay ?? 0, duration: fade?.duration ?? 0.6 } };
-  }, [slide, placeChange]);
+  const satellite = useRef(null);
 
   const go = useCallback((next) => {
     setIndex((current) => Math.max(0, Math.min(SLIDE_COUNT - 1, next(current))));
@@ -165,23 +152,38 @@ export default function Deck() {
   }, [go]);
 
   const compareOn = Boolean(slide.compare);
+  const [focus, setFocus] = useState(null);
+  useEffect(() => { setFocus(null); }, [index]);
   return (
     <MotionConfig reducedMotion="user">
       <main className="viewport">
         <div className="stage" style={{ transform: `translate(-50%, -50%) scale(${scale})` }} aria-roledescription="slide deck">
           <div className={`layer sat-wrap${slide.dusk ? ' dusk' : ''}`}>
-            <SatelliteLayer view={slide.sat} />
+            <SatelliteLayer view={slide.sat} liveRef={satellite} />
           </div>
-          <motion.div className={`layer street-layer${slide.street?.mode === 'layers' ? ' soft-edges' : ''}`} initial={false} animate={streetAnim}>
-            <StreetWorld places={places} shot={streetShot} active={streetActive} />
-          </motion.div>
+          <div className="layer street-layer">
+            <StreetWorld places={places} shot={lastStreet.current} visible={Boolean(slide.street)} satellite={satellite} />
+          </div>
           <motion.div className="layer compare-layer" initial={false} animate={{ opacity: compareOn ? 1 : 0 }} transition={{ duration: 0.9, ease: EASE }}>
-            <PixelWorld shot={lastCompare.current} stats={STATS} active={compareOn} />
+            <PixelWorld shot={lastCompare.current} stats={STATS} active={compareOn} focus={focus} />
           </motion.div>
           <Scrims variant={slide.panel} />
           <LayoutGroup>
-            <Panel slide={slide} replay={replay} />
+            <Panel slide={slide} replay={replay} onFocus={setFocus} />
           </LayoutGroup>
+          <AnimatePresence>
+            {slide.viz === 'rentline' && (
+              <motion.div
+                key={`rentline-${replay}`}
+                className="viz-right"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE, delay: 0.5 } }}
+                exit={{ opacity: 0, scale: 0.35, x: -260, y: 60, transition: { duration: 0.9, ease: [0.5, 0, 0.75, 0] } }}
+              >
+                <RentLine {...CHARTS.rentline} />
+              </motion.div>
+            )}
+          </AnimatePresence>
           <TashaCard state={slide.card ?? 'hidden'} at={lastCardAt.current} />
           <Bubble show={Boolean(slide.bubble)} text={slide.bubble?.text ?? ''} at={slide.bubble?.at ?? { x: 0, y: 0 }} />
           <nav className="chrome" aria-label="Slide controls">

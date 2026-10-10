@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useReducedMotion } from 'motion/react';
-import { buildPlaceScene, layoutBuildings, sceneFeatures, WIDTH, HEIGHT } from '../../../dist/map/places.js';
+import { buildPlaceScene, layoutBuildings, projection, sceneFeatures, WIDTH, HEIGHT } from '../../../dist/map/places.js';
+import { pxPerMeter } from './SatelliteLayer.jsx';
 import { walkingPosition } from '../../../dist/map/residents.js';
 import atlas from '../../../dist/assets/world-atlas.json';
 import artUrl from '../../../dist/assets/world-atlas.png';
@@ -8,12 +9,31 @@ import charsUrl from '../../../dist/assets/sprites.png';
 import soccerUrl from '../../../dist/assets/places/soccer.png';
 import basketballUrl from '../../../dist/assets/places/basketball.png';
 import { drawCharacter } from './world.js';
+import { backingScale, createCamera } from './camera.js';
 
 export const STREET = { w: WIDTH, h: HEIGHT };
 const STAGE = { w: 1600, h: 900 };
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
+const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+// Smoothstep ramp for the patch's feathered edges.
+const RAMP = [[0, 0], [0.25, 0.16], [0.5, 0.5], [0.75, 0.84], [1, 1]];
+
+/** Fades the patch (screen rect x, y, pw, ph) to transparent toward each edge that is on screen. */
+function featherPatch(ctx, x, y, pw, ph, w, h, dpr) {
+  const f = Math.max(60, Math.min(260, 0.28 * Math.min(pw, ph)));
+  const edges = [[x, 0, x + f, 0, x + f > 0], [x + pw, 0, x + pw - f, 0, x + pw - f < w], [0, y, 0, y + f, y + f > 0], [0, y + ph, 0, y + ph - f, y + ph - f < h]];
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalCompositeOperation = 'destination-in';
+  for (const [ax, ay, bx, by, onScreen] of edges) {
+    if (!onScreen) continue;
+    const g = ctx.createLinearGradient(ax, ay, bx, by);
+    for (const [at, a] of RAMP) g.addColorStop(at, `rgba(0,0,0,${a})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
 
 const images = {};
 function loadImage(src) {
@@ -68,12 +88,15 @@ function sceneFor(place, art, sports) {
 /**
  * The app's street scene (dist/map/places.js) for a real San Francisco location, built
  * from snapshotted OpenStreetMap data. Walkers follow mapped routes like in the app.
- * shot: { place, camera: {x, y, z}, mode: 'pixel'|'layers', tags, highlight }
+ * shot: { place, camera: {x, y, z}, mode: 'pixel'|'layers', tags, highlight, follow,
+ *         fade: {delay, duration}, fadeOut }
+ * visible: whether the street should be showing. It cross-fades over the satellite with
+ * feathered edges, riding the satellite's camera so the roads stay on the real roads.
  */
-export default function StreetWorld({ places, shot, active }) {
+export default function StreetWorld({ places, shot, visible, satellite }) {
   const ref = useRef(null);
-  const live = useRef({ shot, active });
-  live.current = { shot, active };
+  const live = useRef({ shot, visible });
+  live.current = { shot, visible };
   const reduced = useReducedMotion();
 
   useEffect(() => {
@@ -85,40 +108,65 @@ export default function StreetWorld({ places, shot, active }) {
     Promise.all([loadImage(artUrl), loadImage(charsUrl), loadImage(soccerUrl), loadImage(basketballUrl)]).then(([art, chars, soccer, basketball]) => {
       if (!alive) return;
       const scenes = Object.fromEntries(Object.entries(places).map(([id, p]) => [id, sceneFor(p, art, { soccer, basketball })]));
-      const cam = { x: WIDTH / 2, y: HEIGHT / 2, z: 1 };
-      const flight = { from: { ...cam }, to: { ...cam }, t0: 0, dur: 0 };
+      const cam = createCamera({ x: WIDTH / 2, y: HEIGHT / 2, z: 1 });
       let lastShot = null;
-      let lastPlace = null;
+      let shown = null; // the place actually drawn; lags the shot while the old one shrinks
       let modeAt = 0;
       let last = performance.now();
       let clock = 0;
+      // Reveal amount 0..1, driven by a small queue of timed eases.
+      let amount = live.current.visible ? 1 : 0;
+      let queue = [];
+      let wasVisible = live.current.visible;
+      const plan = (now, steps) => { queue = steps.map(([delay, to, dur]) => ({ at: now + delay * 1000, to, dur: dur * 1000, from: null })); };
 
       const frame = (now) => {
         const dt = Math.min(0.05, (now - last) / 1000);
         last = now;
         if (!reduced) clock += dt;
-        const { shot: s, active: on } = live.current;
-        const scene = scenes[s.place];
-        if (s !== lastShot) {
-          const to = { ...s.camera };
-          const jump = s.place !== lastPlace || lastShot === null || reduced;
-          flight.from = jump ? { ...to } : { ...cam };
-          flight.to = to;
-          flight.t0 = now;
-          const dist = Math.hypot(to.x - cam.x, to.y - cam.y);
-          flight.dur = jump ? 0 : Math.min(2400, Math.max(1100, 900 + dist * 0.8 + Math.abs(Math.log(to.z / cam.z)) * 520));
-          if (s.mode !== lastShot?.mode || s.place !== lastPlace) modeAt = now + (s.modeDelay ?? 0);
+        const { shot: s, visible } = live.current;
+        if (s !== lastShot || visible !== wasVisible) {
+          const fade = s.fade ?? { delay: 0, duration: 0.6 };
+          if (reduced) { queue = []; amount = visible ? 1 : 0; }
+          else if (!visible) plan(now, [[0, 0, 0.75]]);
+          else if (shown !== null && s.place !== shown && amount > 0) {
+            // Fade the old place out, then fade the new one in at the end of the flight.
+            plan(now, [[0, 0, s.fadeOut ?? 0.6], [Math.max(fade.delay, (s.fadeOut ?? 0.6) + 0.1), 1, fade.duration]]);
+          } else if (!wasVisible || amount < 1) plan(now, [[fade.delay, 1, fade.duration]]);
+          if (s.mode !== lastShot?.mode || s.place !== lastShot?.place) modeAt = now + (s.modeDelay ?? 0);
+          if (lastShot === null) { shown = s.place; cam.jump(s.camera); }
           lastShot = s;
-          lastPlace = s.place;
+          wasVisible = visible;
         }
-        const p = flight.dur === 0 ? 1 : clamp01((now - flight.t0) / flight.dur);
-        const e = easeInOut(p);
-        cam.x = flight.from.x + (flight.to.x - flight.from.x) * e;
-        cam.y = flight.from.y + (flight.to.y - flight.from.y) * e;
-        cam.z = Math.exp(Math.log(flight.from.z) + (Math.log(flight.to.z) - Math.log(flight.from.z)) * e);
+        while (queue.length && now >= queue[0].at) {
+          const q = queue[0];
+          if (q.from === null) q.from = amount;
+          const p = q.dur ? clamp01((now - q.at) / q.dur) : 1;
+          amount = q.from + (q.to - q.from) * easeInOut(p);
+          if (p < 1) break;
+          queue.shift();
+        }
+        // Swap scenes only once the old one has fully faded out.
+        if (shown !== s.place && amount <= 0.001) { shown = s.place; cam.jump(s.camera); }
+        const scene = scenes[shown];
+        // While the satellite is in a flight, ride its exact camera so every pixel road
+        // sits on the real road underneath; otherwise ease toward the shot.
+        const sat = satellite?.current;
+        const centerLL = places[shown]?.center;
+        if ((s.follow || shown !== s.place) && sat?.map && centerLL) {
+          const c = sat.map.getCenter();
+          const [fx, fy] = projection(centerLL).toXY([c.lng, c.lat]);
+          const target = { x: fx, y: fy, z: pxPerMeter(sat.map.getZoom(), c.lat) / 2 };
+          if (sat.moving || reduced) cam.jump(target);
+          else cam.step(dt, target);
+        } else if (reduced) cam.jump(s.camera);
+        else cam.step(dt, s.camera);
 
-        if (on && scene) {
-          const dpr = Math.min(2, window.devicePixelRatio || 1);
+        if (amount <= 0.001) {
+          if (canvas.dataset.clear !== '1') { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.dataset.clear = '1'; canvas.style.opacity = '0'; }
+        } else if (scene) {
+          canvas.dataset.clear = '0';
+          const dpr = backingScale(canvas);
           const w = canvas.clientWidth;
           const h = canvas.clientHeight;
           if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
@@ -212,7 +260,13 @@ export default function StreetWorld({ places, shot, active }) {
             }
             ctx.globalAlpha = 1;
           }
+
+          // The mapped patch dissolves into the satellite toward its edges, so it never
+          // reads as a block; the whole layer cross-fades in and out by opacity.
+          featherPatch(ctx, w / 2 - cam.x * cam.z, h / 2 - cam.y * cam.z, WIDTH * cam.z, HEIGHT * cam.z, w, h, dpr);
         }
+        const opacity = (amount * (s.mode === 'layers' ? 0.9 : 1)).toFixed(3);
+        if (canvas.style.opacity !== opacity) canvas.style.opacity = opacity;
         raf = requestAnimationFrame(frame);
       };
       raf = requestAnimationFrame(frame);
