@@ -8,9 +8,9 @@ export function createCityOverview({ onEnter, onError, reducedMotion = false, le
     active=true;element.hidden=false;
     if(!map){
       map=leaflet.map(element,{zoomControl:false,attributionControl:true,minZoom:11,maxZoom:18,keyboard:false,doubleClickZoom:false,zoomAnimation:!reducedMotion,fadeAnimation:!reducedMotion,maxBounds:[[37.6,-122.65],[37.95,-122.2]],maxBoundsViscosity:1});
-      leaflet.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      leaflet.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
         maxZoom:19,keepBuffer:0,updateWhenIdle:true,
-        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution:'Imagery: <a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9">Esri</a>, Vantor, Earthstar Geographics, GIS User Community'
       }).on('tileerror',()=>{element.dataset.tileError='true';}).on('tileload',()=>{delete element.dataset.tileError;}).addTo(map);
       map.on('click',e=>enter(e.latlng));
       map.setView(SF_CENTER,12,{animate:false});

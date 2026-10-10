@@ -45,3 +45,4 @@
 #game[data-view=city] #mapCaption{bottom:98px}
 #cityMap[data-tile-error=true]::after{content:'Some map tiles could not load. You can still click to explore.';position:absolute;left:12px;bottom:60px;z-index:800;background:#fffef2;padding:8px;font-size:10px;pointer-events:none}
 @media(max-width:650px){#cityMap{top:43px;bottom:62px}#mapCaption{font-size:9px;left:12px;transform:none;max-width:245px;white-space:normal}#cityMap .leaflet-control-attribution{font-size:8px}}
+#cityMap{background:#1c292b}#cityMap .leaflet-control-attribution{max-width:100%;font-size:8px;line-height:1.35;background:#182623e8;color:#dce6de}#cityMap .leaflet-control-attribution a{color:#ecf3e9}

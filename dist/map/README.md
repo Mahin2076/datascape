@@ -1,6 +1,6 @@
 # Map branch handoff
 
-`feature/map-zoom` implements the first San Francisco map milestone. The city overview uses Leaflet 1.9.4 with OpenStreetMap tiles; clicking the city map opens DataScape's illustrative scene. It is not a geospatial reconstruction of that block. Other cities keep the existing schematic comparison and street scenes.
+`feature/map-zoom` implements the first San Francisco map milestone. The city overview uses Leaflet 1.9.4 with Esri World Imagery satellite tiles; clicking the city map opens DataScape's illustrative scene. It is not a geospatial reconstruction of that block. Other cities keep the existing schematic comparison and street scenes.
 
 ## Controls
 
@@ -50,9 +50,9 @@ Manual flow: SF overview → zoom in → walk → inspect → choose 2024 → re
 
 ## Map provider and attribution
 
-Leaflet 1.9.4 is vendored in `vendor/` with its BSD license. The overview requests only visible tiles from `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, using normal browser caching and referrers, with visible OpenStreetMap attribution. No bulk downloads, offline tile packs, or background prefetching are implemented. Provider policy: https://operations.osmfoundation.org/policies/tiles/. For a high-traffic public deployment, select a suitable hosted provider and update the tile-layer URL/attribution.
+Leaflet 1.9.4 is vendored in `vendor/` with its BSD license. The overview requests only visible tiles from `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}`, using normal browser caching and referrers, with visible attribution to Esri, Vantor, Earthstar Geographics, and the GIS User Community. No bulk downloads, offline tile packs, or background prefetching are implemented. Provider metadata and terms: https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9. For a high-traffic public deployment, select a suitable hosted provider and update the tile-layer URL/attribution.
 
-The real SF basemap is independent of the historical ACS year. Clicking any location opens the same illustrative street world; it does not reconstruct the clicked block or show address-level rent. The Simtra pixel overview has been removed. Existing pixel street artwork retains the credits in the main README.
+The satellite imagery is independent of the historical ACS year and is not a live feed. Clicking any location opens the same illustrative street world; it does not reconstruct the clicked block or show address-level rent. The Simtra pixel overview has been removed. Existing pixel street artwork retains the credits in the main README.
 
 ## Simplified exploration update
 
