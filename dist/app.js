@@ -153,7 +153,7 @@ function render(now){let dt=Math.min(.04,(now-last)/1000||0);last=now;if(ambient
  // All street blocks belong to the selected city's illustrative world.
  const candidate=overview?null:nearest();if(candidate!==near){near=candidate;$('#nearby').hidden=!near;if(near)$('#nearbyName').textContent=near.title;}
  const w=canvas.clientWidth,h=canvas.clientHeight,dpr=Math.min(devicePixelRatio,2);if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr)}
- const top=document.querySelector('.hud').getBoundingClientRect().bottom,usable=Math.max(180,h-top-64);
+ const top=document.querySelector('.hud').getBoundingClientRect().bottom,usable=Math.max(180,h-top);
  $('#game').style.setProperty('--map-top',`${top+9}px`);
  canvas.dataset.view=$('#game').dataset.view;canvas.dataset.playerX=player.x.toFixed(1);canvas.dataset.playerY=player.y.toFixed(1);
  if(cityMap.active){ctx.setTransform(dpr,0,0,dpr,0,0);cityMap.draw(ctx,w,h,top,dt,now);requestAnimationFrame(render);return;}
