@@ -16,7 +16,7 @@ One OpenAI Responses request produces validated structured dialogue for the whol
 
 The server caches identical successful requests in memory for 15 minutes (80 entries), limits concurrency to two and requests to ten per minute, caps input size at 20 KB, and uses a 45-second provider timeout. Changed scenarios cannot reuse a different scenario's reply. Missing keys, provider errors, and rate limits are explicit; no scripted answer is silently passed off as live AI. Browser cancellation invalidates stale replies when the city, year, scenario or neighborhood changes.
 
-Provider setup uses the [OpenAI structured-output contract](https://developers.openai.com/api/docs/guides/structured-outputs) and the version-matched AI SDK docs. `OPENAI_MODEL` defaults to the API-verified `gpt-6-luna` model. There are no secrets in committed examples or frontend assets.
+Provider setup uses the [OpenAI structured-output contract](https://developers.openai.com/api/docs/guides/structured-outputs) and the version-matched AI SDK docs. `OPENAI_MODEL` defaults to the API-verified `gpt-4.1-mini` model. There are no secrets in committed examples or frontend assets.
 
 ## Checks
 
