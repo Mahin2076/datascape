@@ -17,3 +17,5 @@
 #game .explore-options .zoom button{flex:1;text-align:center}
 #game .explore-options #ambient{display:block}
 #mapCaption{display:none!important}
+
+.header-actions .data-room-entry{display:inline-flex;align-items:center;padding:9px 13px;border:1px solid #8d9b89;border-radius:3px;color:#273d34;background:#edede3;text-decoration:none;font:11px ui-monospace,monospace;white-space:nowrap}.data-room-entry:hover{background:#dde4d4}.data-room-entry:focus-visible{outline:2px solid #947528;outline-offset:3px}@media(max-width:650px){.header-actions .data-room-entry{font-size:9px;padding:8px}.header-actions{gap:6px!important}}
