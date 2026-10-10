@@ -1,3 +1,4 @@
+import {createPlaceCache,covers} from './place-cache.js';
 import {createWalkingRoutes,assignWalkingRoutes} from './residents.js';
 // OSM geometry owns positions; artwork only supplies the visual treatment.
 export const WIDTH=1536,HEIGHT=1152,SCALE=2;
@@ -45,19 +46,28 @@ export function normalizeOSM(data){
 export function sceneFeatures(features,center){const project=projection(center);return features.map(f=>({...f,points:f.points.map(project.toXY),rings:f.rings?.map(r=>r.map(project.toXY))})).filter(f=>{
  const xs=f.points.map(p=>p[0]),ys=f.points.map(p=>p[1]);return Math.max(...xs)>=0&&Math.min(...xs)<=WIDTH&&Math.max(...ys)>=0&&Math.min(...ys)<=HEIGHT;
 });}
-export function createPlaceLoader(fetcher=fetch){
- const cache=[];
+export function createPlaceLoader(fetcher=fetch,persistent=createPlaceCache()){
+ const cache=[],pending=[];
  return async center=>{
   const dx=WIDTH/(2*SCALE*METERS*Math.cos(center.lat*Math.PI/180)),dy=HEIGHT/(2*SCALE*METERS);
-  const hit=cache.find(c=>center.lng-dx>=c.bounds[0]&&center.lat-dy>=c.bounds[1]&&center.lng+dx<=c.bounds[2]&&center.lat+dy<=c.bounds[3]);if(hit)return hit.features;
-  // Bounded local-area request, never the entire planet or bulk tile harvesting.
+  const needed=[center.lng-dx,center.lat-dy,center.lng+dx,center.lat+dy];
+  const hit=cache.find(c=>covers(c.bounds,needed));if(hit)return hit.features;
+  const flight=pending.find(c=>covers(c.bounds,needed));if(flight)return flight.promise;
   const bounds=[center.lng-dx*1.35,center.lat-dy*1.35,center.lng+dx*1.35,center.lat+dy*1.35];
-  const response=await fetcher('https://api.openstreetmap.org/api/0.6/map.json?bbox='+bounds.join(','),{signal:AbortSignal.timeout(30000)});
-  if(!response.ok)throw Error('Map details unavailable');const data=await response.json();
-  const features=normalizeOSM(data);if(!features.length)throw Error('No mapped features here');
-  cache.unshift({bounds,features});if(cache.length>8)cache.pop();return features;
+  const entry={bounds};
+  entry.promise=(async()=>{
+   const saved=await persistent.read(needed);
+   if(saved){cache.unshift(saved);if(cache.length>8)cache.pop();return saved.features;}
+   const response=await fetcher('https://api.openstreetmap.org/api/0.6/map.json?bbox='+bounds.join(','),{signal:AbortSignal.timeout(30000)});
+   if(!response.ok)throw Error('Map details unavailable');const data=await response.json();
+   const features=normalizeOSM(data);if(!features.length)throw Error('No mapped features here');
+   const record={bounds,features};cache.unshift(record);if(cache.length>8)cache.pop();
+   void persistent.write(record);return features;
+  })().finally(()=>{const i=pending.indexOf(entry);if(i>=0)pending.splice(i,1);});
+  pending.push(entry);return entry.promise;
  };
 }
+
 function trace(ctx,rings){ctx.beginPath();for(const ring of rings){ring.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();}}
 function fieldFrame(points){
  let best=null;for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],length=Math.hypot(b[0]-a[0],b[1]-a[1]);if(!best||length>best.length)best={length,angle:Math.atan2(b[1]-a[1],b[0]-a[0])};}

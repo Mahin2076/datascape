@@ -87,3 +87,12 @@ test('failed map details keep the satellite view available to retry',async()=>{
  const c=createCityOverview({element:{hidden:true,dataset:{}},leaflet:{map:()=>map,tileLayer:()=>layer},prepare:async()=>{throw Error('network');},onPrepareError:()=>errors++,onEnter(){assert.fail('must not enter a fake fallback');},onError(){}});
  c.open();c.enter();await new Promise(r=>setImmediate(r));assert.equal(c.active,true);assert.equal(c.transitioning,false);assert.equal(errors,1);
 });
+
+test('near-street zoom preloads without entering and closing cancels scheduled preload',async()=>{
+ let zoom=12,loads=0,enters=0;const events={},queue=new Map();let id=0;
+ const map={getCenter:()=>({lat:37.76,lng:-122.43}),getZoom:()=>zoom,on(e,fn){events[e]=fn;return this;},setView(){return this;},invalidateSize(){},stop(){},setZoom(z){zoom=z;events.zoomend?.();events.moveend?.();}};
+ const layer={on(){return this;},addTo(){return this;}};
+ const c=createCityOverview({element:{hidden:true,dataset:{}},leaflet:{map:()=>map,tileLayer:()=>layer},preload:async()=>loads++,schedule:fn=>{queue.set(++id,fn);return id;},unschedule:i=>queue.delete(i),onEnter:()=>enters++,onError(){}});
+ c.open();c.changeZoom(1);c.changeZoom(1);c.changeZoom(1);assert.equal(queue.size,1);for(const fn of queue.values())fn();queue.clear();await new Promise(r=>setImmediate(r));assert.equal(loads,1);assert.equal(enters,0);
+ c.changeZoom(1);c.close();assert.equal(queue.size,0);
+});

@@ -34,3 +34,17 @@ test('illustrative houses keep full asset proportions and avoid overlapping each
  for(const a of houses){assert.equal(a.w,atlas[a.n][2]*.7);assert.equal(a.h,atlas[a.n][3]*.7);for(const b of houses){if(a===b)continue;assert.ok(a.x+a.w<=b.x||b.x+b.w<=a.x||a.y+a.h<=b.y||b.y+b.h<=a.y);}}
  const water={id:100,type:'water',tags:{},points:[[0,0],[1536,0],[1536,1152],[0,1152]]};assert.equal(layoutBuildings([...features,water],atlas).length,0);
 });
+
+test('concurrent neighborhood requests share a single download',async()=>{
+ let requests=0,release;const load=createPlaceLoader(async()=>{requests++;await new Promise(r=>release=r);return {ok:true,json:async()=>fixture};});
+ const a=load(center),b=load(center);await new Promise(r=>setImmediate(r));assert.equal(requests,1);release();assert.deepEqual(await a,await b);
+});
+test('a new loader reuses saved geometry without downloading',async()=>{
+ let record,requests=0;const persistent={read:async()=>record||null,write:async entry=>{record=entry;}};
+ const fetcher=async()=>{requests++;return {ok:true,json:async()=>fixture};};
+ await createPlaceLoader(fetcher,persistent)(center);await createPlaceLoader(fetcher,persistent)(center);assert.equal(requests,1);
+});
+test('failed shared downloads can be retried',async()=>{
+ let requests=0;const load=createPlaceLoader(async()=>{requests++;return {ok:requests>1,json:async()=>fixture};});
+ await assert.rejects(load(center));assert.equal((await load(center)).length,1);assert.equal(requests,2);
+});

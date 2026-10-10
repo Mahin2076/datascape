@@ -1,8 +1,8 @@
 const SF_CENTER = [37.76,-122.435];
-export function createCityOverview({ onEnter, prepare, onPrepare = ()=>{}, onPrepareError = ()=>{}, onReturn = ()=>{}, onError, reducedMotion = false, leaflet = globalThis.L, element = document.querySelector('#cityMap'), overlay = globalThis.document?.querySelector('#mapDive'), schedule = setTimeout, unschedule = clearTimeout }) {
-  let active = false, map = null, transitioning = false, handingOff = false, timers = [], returning = false, lastZoom = 12, revision = 0;
+export function createCityOverview({ onEnter, prepare, preload, onPrepare = ()=>{}, onPrepareError = ()=>{}, onReturn = ()=>{}, onError, reducedMotion = false, leaflet = globalThis.L, element = document.querySelector('#cityMap'), overlay = globalThis.document?.querySelector('#mapDive'), schedule = setTimeout, unschedule = clearTimeout }) {
+  let active = false, map = null, transitioning = false, handingOff = false, timers = [], returning = false, lastZoom = 12, revision = 0, preloadTimer = null, preloading = false;
   function cancelTransition(){
-    revision++;onPrepare(false);timers.forEach(unschedule);timers=[];transitioning=true;map?.stop?.();transitioning=false;
+    revision++;if(preloadTimer!==null){unschedule(preloadTimer);preloadTimer=null;}onPrepare(false);timers.forEach(unschedule);timers=[];transitioning=true;map?.stop?.();transitioning=false;
     if(overlay)overlay.hidden=true;element.classList?.remove('zoom-handoff','zoom-return');if(returning){returning=false;active=true;onReturn();}if(!active)element.hidden=true;
   }
   function close(){if(handingOff){active=false;return;}cancelTransition();active=false;element.hidden=true;}
@@ -41,6 +41,12 @@ export function createCityOverview({ onEnter, prepare, onPrepare = ()=>{}, onPre
         attribution:'Imagery: <a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9">Esri</a>, Vantor, Earthstar Geographics, GIS User Community'
       }).on('tileerror',()=>{element.dataset.tileError='true';}).on('tileload',()=>{delete element.dataset.tileError;}).addTo(map);
       map.on('click',e=>enter(e.latlng));
+      map.on('moveend',()=>{
+        if(preloadTimer!==null)unschedule(preloadTimer);
+        if(preload&&active&&!transitioning&&map.getZoom()>=15&&map.getZoom()<17){
+          preloadTimer=schedule(()=>{preloadTimer=null;if(active&&!transitioning&&!preloading){preloading=true;const center=map.getCenter();Promise.resolve().then(()=>preload(center)).catch(()=>{}).finally(()=>{preloading=false;});}},180);
+        }
+      });
       map.on('zoomend',()=>{const next=map.getZoom(),zoomingIn=next>lastZoom;lastZoom=next;if(active&&!transitioning&&zoomingIn&&next>=17)enter(map.getCenter(),true);});
       const link=globalThis.location?.hash.match(/^#map=(\d+)\/(-?[\d.]+)\/(-?[\d.]+)$/);
       const lat=Number(link?.[2]),lng=Number(link?.[3]);

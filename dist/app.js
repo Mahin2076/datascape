@@ -17,10 +17,20 @@ let selectedResident = null, residentHits = [], syncingSelection = false;
 const streetPositions = new Map();
 let mappedScene=null;const loadPlace=createPlaceLoader();
 const sports={soccer:await image('assets/places/soccer.png'),basketball:await image('assets/places/basketball.png')};
+const preparedPlaces=new Map();
 async function preparePlace(center){
- const features=await loadPlace(center);return buildPlaceScene(features,center,{patterns,sports,sprite,atlas});
+ const key=`${center.lat.toFixed(6)},${center.lng.toFixed(6)}`,started=performance.now();
+ if(preparedPlaces.has(key)){const scene=await preparedPlaces.get(key);canvas.dataset.placeTiming=JSON.stringify({source:'prepared',loadMs:0,buildMs:0,totalMs:Math.round(performance.now()-started)});return scene;}
+ const promise=(async()=>{
+  const features=await loadPlace(center),loaded=performance.now();
+  const scene=buildPlaceScene(features,center,{patterns,sports,sprite,atlas});
+  canvas.dataset.placeTiming=JSON.stringify({source:'generated',loadMs:Math.round(loaded-started),buildMs:Math.round(performance.now()-loaded),totalMs:Math.round(performance.now()-started)});return scene;
+ })();
+ preparedPlaces.set(key,promise);while(preparedPlaces.size>4)preparedPlaces.delete(preparedPlaces.keys().next().value);
+ try{return await promise;}catch(error){preparedPlaces.delete(key);throw error;}
 }
-const cityMap = createCityOverview({ reducedMotion: reduced, prepare:preparePlace,onPrepare:loading=>{$('#game').dataset.loadingPlace=String(loading);$('#mapCaption').textContent=loading?'Loading this neighborhood…':'Scroll in to explore · scroll out to return';},onPrepareError:()=>toast('Could not load this neighborhood. Try again in a moment.'), onEnter:options=>enterStreet(options?.animated,options?.latlng,options?.prepared), onReturn:()=>{overview=true;refresh();}, onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
+
+const cityMap = createCityOverview({ reducedMotion: reduced, prepare:preparePlace,preload:center=>loadPlace(center),onPrepare:loading=>{$('#game').dataset.loadingPlace=String(loading);$('#mapCaption').textContent=loading?'Loading this neighborhood…':'Scroll in to explore · scroll out to return';},onPrepareError:()=>toast('Could not load this neighborhood. Try again in a moment.'), onEnter:options=>enterStreet(options?.animated,options?.latlng,options?.prepared), onReturn:()=>{overview=true;refresh();}, onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
 function emitSelection(){
  if(syncingSelection)return;
  selection.set({cityId:cities[current].id,year:db.years[year]});
