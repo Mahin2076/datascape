@@ -16,14 +16,7 @@ Vanilla JavaScript, HTML, CSS, and Canvas. No API key, package install, or build
 
 ## Run locally
 
-The public repository excludes the two purchased LimeZu artwork atlases. The local project owner's checkout contains them, but they are intentionally ignored by Git. To run the original visual version, supply your own licensed copies of these project-specific compiled atlases:
-
-- `dist/assets/world-atlas.png` — regions defined in `world-atlas.json`
-- `dist/assets/city-atlas.png` — regions defined in `atlas.json`
-
-Buying the asset pack alone does not generate these custom atlases; an asset preparation step is required. Do not commit the paid artwork to this public repository.
-
-Once the atlases are available:
+The compiled artwork atlases used by the app are included. From the repository root:
 
 ```sh
 python3 -m http.server 8123 --directory dist
@@ -39,6 +32,6 @@ ACS releases are overlapping five-year estimates. Dollar changes are nominal, an
 
 ## Credits
 
-- City artwork: [Modern Exteriors by LimeZu](https://limezu.itch.io/modernexteriors), purchased separately and omitted from this public repository.
+- City artwork: [Modern Exteriors by LimeZu](https://limezu.itch.io/modernexteriors), purchased by the project owner. Compiled atlases are included for this application; the artwork remains subject to LimeZu’s license and is not relicensed by this repository.
 - Characters: [route1rodent / javikolog](https://route1rodent.itch.io/16x16-rpg-character-sprite-sheet), adapted from the OpenGameArt NES-style characters. This sheet is sourced from [Sim Francisco](https://simfrancisco.org/assets/sprites.png); its accompanying [CC BY-SA 3.0 license](dist/assets/SPRITES-LICENSE.txt) is included. The sheet is redistributed unchanged.
 - Data: U.S. Census Bureau, ACS five-year estimates. Table links and margins of error are included in the dataset and inspection interface.
