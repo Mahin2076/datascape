@@ -1,3 +1,4 @@
+import {createPlaceLoader,buildPlaceScene} from './map/places.js';
 import { streetCamera } from './map/geometry.js';
 import { createCityOverview } from './map/city-overview.js';
 import { createSelectionStore } from './map/selection.js';
@@ -13,7 +14,12 @@ const selection = createSelectionStore({ cityIds: cities.map(c=>c.id), years: db
 const residentEvents = new EventTarget();
 let selectedResident = null, residentHits = [], syncingSelection = false;
 const streetPositions = new Map();
-const cityMap = createCityOverview({ reducedMotion: reduced, onEnter:options=>enterStreet(options?.animated), onReturn:()=>{overview=true;refresh();}, onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
+let mappedScene=null;const loadPlace=createPlaceLoader();
+const sports={soccer:await image('assets/places/soccer.png'),basketball:await image('assets/places/basketball.png')};
+async function preparePlace(center){
+ const features=await loadPlace(center);return buildPlaceScene(features,center,{patterns,sports,sprite});
+}
+const cityMap = createCityOverview({ reducedMotion: reduced, prepare:preparePlace,onPrepare:loading=>{$('#game').dataset.loadingPlace=String(loading);$('#mapCaption').textContent=loading?'Loading this neighborhood…':'Scroll in to explore · scroll out to return';},onPrepareError:()=>toast('Could not load this neighborhood. Try again in a moment.'), onEnter:options=>enterStreet(options?.animated,options?.latlng,options?.prepared), onReturn:()=>{overview=true;refresh();}, onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
 function emitSelection(){
  if(syncingSelection)return;
  selection.set({cityId:cities[current].id,year:db.years[year]});
@@ -33,7 +39,7 @@ selection.subscribe(value=>{
 });
 function updateMapUI(){
  const mode=cityMap.active?'city':overview?'compare':'street';
- $('#game').dataset.view=mode;
+ $('#game').dataset.view=mode;$('#placeCredit').hidden=!(mode==='street'&&mappedScene);
  $('#cityView').textContent=mode==='street'?'← City map':'City map';$('#mapCaption').hidden=mode!=='city';$('#mapMode').textContent=mode==='city'?'CITY / SAN FRANCISCO':mode==='compare'?'FIVE CITIES':`${cities[current].name.toUpperCase()} / STREET`;
  $('#cityView').setAttribute('aria-pressed',String(mode==='city'));
  $('#compareView').setAttribute('aria-pressed',String(mode==='compare'));
@@ -56,7 +62,17 @@ function showComparison(){
  stopTimeline();if(!overview)streetPositions.set(current,{x:player.x,y:player.y});
  cityMap.close();overview=true;keys.clear();path=[];inspected=null;$('#inspection').hidden=true;$('#answer').hidden=true;refresh();
 }
-function enterStreet(animated=false){
+function enterStreet(animated=false,latlng,preparedScene){
+ if(current===0&&!latlng&&cityMap.ready){if(!cityMap.active)cityMap.open();cityMap.enter();return;}
+ if(current===0&&latlng&&preparedScene){
+  const previous=mappedScene,oldPosition=[player.x,player.y];
+  travel(current);mappedScene=preparedScene;zoom=1.65;
+  const same=previous&&Math.abs(previous.center.lat-latlng.lat)<.00001&&Math.abs(previous.center.lng-latlng.lng)<.00001;
+  [player.x,player.y]=same?oldPosition:mappedScene.spawn;cam.x=player.x;cam.y=player.y-28;cam.z=animated?1.05:zoom;
+  canvas.dataset.place=JSON.stringify({center:latlng,features:mappedScene.features.length,pitches:mappedScene.features.filter(f=>f.type==='pitch').map(f=>({id:f.id,sport:f.tags.sport||'unspecified'}))});
+  updateMapUI();canvas.focus();return;
+ }
+ mappedScene=null;
  stopTimeline();const saved=streetPositions.get(current);travel(current);zoom=1.65;
  if(saved){player.x=saved.x;player.y=saved.y;cam.x=player.x;cam.y=player.y-28;}if(animated){cam.z=1.05;}updateMapUI();canvas.focus();
 }
@@ -107,17 +123,18 @@ const npc=Array.from({length:55},(_,i)=>({id:`${cities[i%5].id}-resident-${Math.
 function residentId(a,city){return `${cities[city].id}-resident-${a.ordinal+((a.city-city+5)%5)*11}`;}
 let vehicles=[];const oldArt=await image('assets/city-atlas.png');const oldAtlas=await fetch('assets/atlas.json').then(r=>r.json());
 function car(n,x,y,vx){const a=oldAtlas[n],w=a[2]*.65,h=a[3]*.65;/* Car art faces right; bus art faces left. Match facing to velocity. */const flip=n==='bus'?vx>0:vx<0;ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.drawImage(oldArt,...a,-w/2,0,w,h);ctx.restore()}
-function blocked(x,y){return x<40||y<50||x>1490||y>1090||obstacles.some(b=>x>b.x-5&&x<b.x+b.w+5&&y>b.y-3&&y<b.y+b.h+4)}
+function blocked(x,y){if(mappedScene&&!overview)return mappedScene.isBlocked(x,y);return x<40||y<50||x>1490||y>1090||obstacles.some(b=>x>b.x-5&&x<b.x+b.w+5&&y>b.y-3&&y<b.y+b.h+4)}
 function move(dx,dy){const before=[player.x,player.y];if(!blocked(player.x+dx,player.y))player.x+=dx;if(!blocked(player.x,player.y+dy))player.y+=dy;return Math.abs(before[0]-player.x)+Math.abs(before[1]-player.y)>.01;}
-function nearest(){let best=null,dist=65;for(const b of buildings){let d=Math.hypot(b.doorX-player.x,b.doorY-player.y);if(d<dist){dist=d;best=b}}return best;}
+function nearest(){let best=null,dist=65;for(const b of (mappedScene&&!overview?mappedScene.buildings:buildings)){let d=Math.hypot(b.doorX-player.x,b.doorY-player.y);if(d<dist){dist=d;best=b}}return best;}
 function refresh(){
  updateMapUI();
  $('#storyStatus').textContent=year===0?'2021 baseline: both growth bars start at zero.':`${db.years[year]}: ${cities.filter((_,i)=>{let g=growth(i);return g.rent>g.income}).length} of 5 cities show rent growing faster than household income.`;$('#year').textContent=db.years[year];$('#time').value=year;$('#citySelect').value=current;$('#state').textContent=cities[current].state;$('#districtTitle').textContent=cities[current].name;$('#districtSubtitle').textContent=['A new perspective on the Golden City.','Big-city dreams. Real-world prices.','A growing city, a changing cost of living.','Find a home beside the lake.','A little rain. A different kind of city.'][current];$('#miniLabel').textContent=cities[current].name.toUpperCase();$('#discoveries').textContent=`${discovered.size} / 5 cities discovered`;if(inspected)showInspection(inspected,false);
 }
-function showInspection(b,record=true){if(!overview)b={...b,city:current};inspected=b;if(record){discovered.add(b.city);$('#quest').hidden=true;refresh();}let c=cities[b.city],d=c.data[year],a=c.data[0],g=d.rent/a.rent-1,ig=d.income/a.income-1;$('#inspection').hidden=false;$('#inspection').innerHTML=`<button class="close" id="closeInspection" aria-label="Close building details">×</button><span class="type">${c.name.toUpperCase()} · HISTORICAL HOUSING DATA</span><h2>${b.title}</h2><span class="sub">Fictional building · ${c.name}, ${c.state}</span><div class="price">${money(d.rent)} <small>/ month</small></div><p class="disclaimer">City median gross rent, not this building’s asking price.<br>ACS ${d.period} five-year estimate.</p><div class="stats"><div><small>HOUSEHOLD INCOME</small><b>${money(d.income)}</b></div><div><small>ANNUAL RENT / INCOME</small><b>${pct(ratio(d))}</b></div><div><small>POPULATION</small><b>${d.population.toLocaleString()}</b></div><div><small>HOUSING VACANCY</small><b>${pct(d.vacantUnits/d.housingUnits)}</b></div></div><p class="trend">${year?`Since 2021: rent <b>+${pct(g)}</b>; household income <b>+${pct(ig)}</b>. Gap: <b>${((g-ig)*100).toFixed(1)} percentage points</b>.`:'This is the 2021 baseline. Move the time slider to see what changed.'}</p><button class="source-button" id="exactSources">View exact values & Census sources ↗</button>`;$('#closeInspection').onclick=()=>{inspected=null;$('#inspection').hidden=true};$('#exactSources').onclick=()=>showSources(b.city);}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function showInspection(b,record=true){if(!overview)b={...b,city:current};inspected=b;if(record){discovered.add(b.city);$('#quest').hidden=true;refresh();}let c=cities[b.city],d=c.data[year],a=c.data[0],g=d.rent/a.rent-1,ig=d.income/a.income-1;$('#inspection').hidden=false;$('#inspection').innerHTML=`<button class="close" id="closeInspection" aria-label="Close building details">×</button><span class="type">${c.name.toUpperCase()} · HISTORICAL HOUSING DATA</span><h2>${escapeHTML(b.title)}</h2><span class="sub">${b.mapped?'Mapped footprint · illustrative artwork':'Fictional building'} · ${c.name}, ${c.state}</span><div class="price">${money(d.rent)} <small>/ month</small></div><p class="disclaimer">City median gross rent, not this building’s asking price.<br>ACS ${d.period} five-year estimate.</p><div class="stats"><div><small>HOUSEHOLD INCOME</small><b>${money(d.income)}</b></div><div><small>ANNUAL RENT / INCOME</small><b>${pct(ratio(d))}</b></div><div><small>POPULATION</small><b>${d.population.toLocaleString()}</b></div><div><small>HOUSING VACANCY</small><b>${pct(d.vacantUnits/d.housingUnits)}</b></div></div><p class="trend">${year?`Since 2021: rent <b>+${pct(g)}</b>; household income <b>+${pct(ig)}</b>. Gap: <b>${((g-ig)*100).toFixed(1)} percentage points</b>.`:'This is the 2021 baseline. Move the time slider to see what changed.'}</p><button class="source-button" id="exactSources">View exact values & Census sources ↗</button>`;$('#closeInspection').onclick=()=>{inspected=null;$('#inspection').hidden=true};$('#exactSources').onclick=()=>showSources(b.city);}
 function showSources(i=current){let c=cities[i],d=c.data[year];$('#sourceDetails').innerHTML=`<p><b>${c.name} · ${d.period}</b><br>Median gross rent: ${money(d.rent)} ± ${money(d.rentMoe)}<br>Median household income: ${money(d.income)} ± ${money(d.incomeMoe)}<br>Margins of error at 90% confidence.</p>`;$('#sourceLinks').innerHTML=Object.entries(d.sources).map(([k,v])=>`<a target="_blank" rel="noreferrer" href="${v}">${k.toUpperCase()} ↗</a>`).join('');keys.clear();path=[];$('#sources').showModal();}
 function toast(s){$('#toast').textContent=s;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2600)}
-function travel(i){if(!overview)streetPositions.set(current,{x:player.x,y:player.y});cityMap.close();selectedResident=null;delete canvas.dataset.selectedResident;current=i;player.x=origins[i][0]+272;player.y=origins[i][1]+240;player.dir=0;path=[];keys.clear();inspected=null;$('#inspection').hidden=true;overview=false;$('#mapLegend').hidden=true;$('#locationBanner').hidden=false;cam.x=player.x;cam.y=player.y-28;cam.z=zoom;refresh();}
+function travel(i){mappedScene=null;delete canvas.dataset.place;if(!overview)streetPositions.set(current,{x:player.x,y:player.y});cityMap.close();selectedResident=null;delete canvas.dataset.selectedResident;current=i;player.x=origins[i][0]+272;player.y=origins[i][1]+240;player.dir=0;path=[];keys.clear();inspected=null;$('#inspection').hidden=true;overview=false;$('#mapLegend').hidden=true;$('#locationBanner').hidden=false;cam.x=player.x;cam.y=player.y-28;cam.z=zoom;refresh();}
 function setMap(){if(overview){if(cityMap.active)cityMap.enter();else enterStreet();}else showCity();}
 function ask(q){stopTimeline();const text=q.toLowerCase();let index=0,title,body,comparison=false,end=year===0?3:year;
  if(/afford|cheap|expensive|burden/.test(text)&&!/grow|rent.*rise|outpace|ahead|keep/.test(text)){let ranked=cities.map((c,i)=>({i,r:ratio(c.data[year])})).sort((a,b)=>a.r-b.r);index=/expensive|least|highest/.test(text)?ranked.at(-1).i:ranked[0].i;let d=cities[index].data[year];title=`${cities[index].name}, by the numbers.`;body=`Its ${d.year} rent-to-income ratio is <strong>${pct(ratio(d))}</strong>, the ${index===ranked[0].i?'lowest':'highest'} of these five cities. Rent: ${money(d.rent)}/month. Household income: ${money(d.income)}/year.`;
@@ -141,13 +158,14 @@ function render(now){let dt=Math.min(.04,(now-last)/1000||0);last=now;if(ambient
  canvas.dataset.view=$('#game').dataset.view;canvas.dataset.playerX=player.x.toFixed(1);canvas.dataset.playerY=player.y.toFixed(1);
  if(cityMap.active){ctx.setTransform(dpr,0,0,dpr,0,0);cityMap.draw(ctx,w,h,top,dt,now);requestAnimationFrame(render);return;}
  residentHits=[];const dest=overview?{x:W/2,y:H/2,z:Math.min(w/(W+60),usable/(H+60))}:streetCamera({width:w,height:usable,worldWidth:W,worldHeight:H,x:player.x,y:player.y-25,zoom:w<650?zoom*.82:zoom});let ease=reduced?1:Math.min(1,dt*7);['x','y','z'].forEach(k=>cam[k]+=(dest[k]-cam[k])*ease);if(!overview)Object.assign(cam,streetCamera({width:w,height:usable,worldWidth:W,worldHeight:H,x:cam.x,y:cam.y,zoom:cam.z}));
- ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;ctx.fillStyle='#68816c';ctx.fillRect(0,0,w,h);const ox=Math.round(w/2-cam.x*cam.z),oy=Math.round(top+usable*.5-cam.y*cam.z);render.transform={ox,oy,scale:cam.z};ctx.translate(ox,oy);ctx.scale(cam.z,cam.z);ctx.save();ctx.drawImage(ground,0,0);
- let objs=props.map(p=>({z:p.z,draw:()=>sprite(ctx,p.n,p.x,p.y)}));
- for(const b of buildings)objs.push({z:b.foot,draw:()=>{ctx.fillStyle='#26332a20';ctx.fillRect(b.x+8,b.y+12,b.w,b.h);sprite(ctx,b.n,b.x,b.y);if(overview){ctx.strokeStyle=gapColor(b.city);ctx.lineWidth=3/cam.z;ctx.strokeRect(b.x-3,b.y-3,b.w+6,b.h+6)}if(!overview){ctx.fillStyle='#202e2aee';ctx.fillRect(b.doorX-37,b.foot-22,74,16);ctx.fillStyle=gapColor(current);ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(money(cities[current].data[year].rent)+'/mo',b.doorX,b.foot-10)}if(b===near&&!overview){ctx.fillStyle='#e3cc7b';ctx.fillRect(b.doorX-7,b.foot+2,14,2);ctx.fillStyle='#fffbe2';ctx.fillRect(b.doorX-2,b.foot+6,4,2)}}});
- for(const a of npc){const id=overview?a.id:residentId(a,current);let [x,y]=origins[a.city],walk=(a.offset+clock*a.speed)%740,forward=walk<370,xx=x+12+(forward?walk:740-walk),yy=y+(a.row?430:235);residentHits.push({id,x:xx,y:yy,city:current});objs.push({z:yy,draw:()=>{if(selectedResident===id){ctx.strokeStyle='#ffec9c';ctx.lineWidth=1.5;ctx.strokeRect(xx-10,yy-20,20,23);}character(ctx,a.char,xx,yy,forward?2:1,ambient,clock+a.offset)}});}
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;ctx.fillStyle='#68816c';ctx.fillRect(0,0,w,h);const ox=Math.round(w/2-cam.x*cam.z),oy=Math.round(top+usable*.5-cam.y*cam.z);render.transform={ox,oy,scale:cam.z};ctx.translate(ox,oy);ctx.scale(cam.z,cam.z);ctx.save();ctx.drawImage(mappedScene&&!overview?mappedScene.ground:ground,0,0);
+ let objs=(mappedScene&&!overview?[]:props).map(p=>({z:p.z,draw:()=>sprite(ctx,p.n,p.x,p.y)}));
+ for(const b of (mappedScene&&!overview?[]:buildings))objs.push({z:b.foot,draw:()=>{ctx.fillStyle='#26332a20';ctx.fillRect(b.x+8,b.y+12,b.w,b.h);sprite(ctx,b.n,b.x,b.y);if(overview){ctx.strokeStyle=gapColor(b.city);ctx.lineWidth=3/cam.z;ctx.strokeRect(b.x-3,b.y-3,b.w+6,b.h+6)}if(!overview){ctx.fillStyle='#202e2aee';ctx.fillRect(b.doorX-37,b.foot-22,74,16);ctx.fillStyle=gapColor(current);ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(money(cities[current].data[year].rent)+'/mo',b.doorX,b.foot-10)}if(b===near&&!overview){ctx.fillStyle='#e3cc7b';ctx.fillRect(b.doorX-7,b.foot+2,14,2);ctx.fillStyle='#fffbe2';ctx.fillRect(b.doorX-2,b.foot+6,4,2)}}});
+ if(mappedScene&&!overview){npc.forEach((a,i)=>{const p=mappedScene.residents[i*7%mappedScene.residents.length];if(!p)return;const id=residentId(a,current),[x,y]=p;residentHits.push({id,x,y,city:current});objs.push({z:y,draw:()=>{if(selectedResident===id){ctx.strokeStyle='#ffec9c';ctx.strokeRect(x-10,y-20,20,23);}character(ctx,a.char,x,y,0,false,clock);}});});}
+ for(const a of (mappedScene&&!overview?[]:npc)){const id=overview?a.id:residentId(a,current);let [x,y]=origins[a.city],walk=(a.offset+clock*a.speed)%740,forward=walk<370,xx=x+12+(forward?walk:740-walk),yy=y+(a.row?430:235);residentHits.push({id,x:xx,y:yy,city:current});objs.push({z:yy,draw:()=>{if(selectedResident===id){ctx.strokeStyle='#ffec9c';ctx.lineWidth=1.5;ctx.strokeRect(xx-10,yy-20,20,23);}character(ctx,a.char,xx,yy,forward?2:1,ambient,clock+a.offset)}});}
  objs.push({z:player.y,draw:()=>{ctx.fillStyle='#25332633';ctx.beginPath();ctx.ellipse(player.x,player.y,7,3,0,0,Math.PI*2);ctx.fill();character(ctx,player.char,player.x,player.y,player.dir,player.moving,now/1000,1.15);if(!overview){ctx.fillStyle='#fff9d8';ctx.beginPath();ctx.moveTo(player.x-3,player.y-27);ctx.lineTo(player.x+3,player.y-27);ctx.lineTo(player.x,player.y-23);ctx.fill();}}});
  objs.sort((a,b)=>a.z-b.z);for(const o of objs)o.draw();
- for(let i=0;i<7;i++){const vx=i%2?23:-19,x=(i*231+clock*vx+100000)%1450+40;car(i===3?'bus':'car',x,i%2?557:514,vx)}
+ for(let i=0;i<(mappedScene&&!overview?0:7);i++){const vx=i%2?23:-19,x=(i*231+clock*vx+100000)%1450+40;car(i===3?'bus':'car',x,i%2?557:514,vx)}
  if(path.length&&!overview){const p=path.at(-1);ctx.strokeStyle='#fbf2c9';ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.stroke();}
  // Data signboards sit in the city; a fixed 0–30% scale is shared by both metrics and all years.
  origins.forEach(([x,y],i)=>{if(!overview)return;const g=growth(i),sx=x+18,sy=y+255;
@@ -189,7 +207,7 @@ canvas.onpointercancel=e=>{pointers.delete(e.pointerId);pointerStart=null;pinchD
 canvas.addEventListener('wheel',e=>{e.preventDefault();if(performance.now()-wheelAt<140||Math.abs(e.deltaY)<2)return;wheelAt=performance.now();zoomMap(e.deltaY<0?1:-1);},{passive:false});
 $('#cityView').onclick=showCity;$('#compareView').onclick=showComparison;$('#enterStreet').onclick=()=>cityMap.enter();
 
-mini.onclick=()=>setMap();$('#inspect').onclick=inspect;$('#mapToggle').onclick=setMap;$('#recenter').onclick=()=>cityMap.active?cityMap.reset():travel(current);$('#zoomIn').onclick=()=>zoomMap(1);$('#zoomOut').onclick=()=>zoomMap(-1);$('#ambient').onclick=()=>{ambient=!ambient;$('#ambient').textContent=ambient?'Ⅱ':'▶';$('#ambient').setAttribute('aria-label',ambient?'Pause ambient animation':'Resume ambient animation')};
+mini.onclick=()=>setMap();$('#inspect').onclick=inspect;$('#mapToggle').onclick=setMap;$('#recenter').onclick=()=>{if(cityMap.active)cityMap.reset();else if(mappedScene){[player.x,player.y]=mappedScene.spawn;path=[];}else travel(current);};$('#zoomIn').onclick=()=>zoomMap(1);$('#zoomOut').onclick=()=>zoomMap(-1);$('#ambient').onclick=()=>{ambient=!ambient;$('#ambient').textContent=ambient?'Ⅱ':'▶';$('#ambient').setAttribute('aria-label',ambient?'Pause ambient animation':'Resume ambient animation')};
 function portrait(){let c=$('#portrait').getContext('2d');c.clearRect(0,0,48,48);c.imageSmoothingEnabled=false;character(c,player.char,24,42,0,false,0,2.4)}$('#avatarButton').onclick=()=>{player.char=(player.char+1)%10;portrait();toast('A new face in the neighborhood.')};
 $('#time').oninput=e=>{stopTimeline();year=+e.target.value;$('#answer').hidden=true;refresh()};$('#play').onclick=()=>timer?stopTimeline():playStory();$('#watchStory').onclick=playStory;$('#revealStory').onclick=revealStory;
 

@@ -52,7 +52,7 @@ Manual flow: SF overview → zoom in → walk → inspect → choose 2024 → re
 
 Leaflet 1.9.4 is vendored in `vendor/` with its BSD license. The overview requests only visible tiles from `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}`, using normal browser caching and referrers, with visible attribution to Esri, Vantor, Earthstar Geographics, and the GIS User Community. No bulk downloads, offline tile packs, or background prefetching are implemented. Provider metadata and terms: https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9. For a high-traffic public deployment, select a suitable hosted provider and update the tile-layer URL/attribution.
 
-The satellite imagery is independent of the historical ACS year and is not a live feed. Clicking any location opens the same illustrative street world; it does not reconstruct the clicked block or show address-level rent. The Simtra pixel overview has been removed. Existing pixel street artwork retains the credits in the main README.
+The satellite imagery is independent of the historical ACS year and is not a live feed. SF entry loads the selected location’s OSM layout with illustrative artwork; it does not show address-level rent. The Simtra pixel overview has been removed. Existing pixel street artwork retains the credits in the main README.
 
 ## Simplified exploration update
 
@@ -62,6 +62,22 @@ There are now 55 selectable sprite IDs per city. Existing IDs 1–11 retain thei
 
 ## Cinematic entry
 
-Clicking the satellite map triggers a 1.8-second continuous zoom toward the selected coordinate. During the final 0.8 seconds, the satellite layer blends into the moving street camera. There are no clouds, flashes, or intermediate cuts. The clicked coordinate sets the satellite camera target only, not the fictional street geometry. Repeated inputs are blocked during handoff; Escape cancels the remaining animation. Reduced-motion users enter immediately. Tests cover timed handoff, repeat-click suppression, and cancellation.
+Clicking the satellite map triggers a 1.8-second continuous zoom toward the selected coordinate. During the final 0.8 seconds, the satellite layer blends into the moving street camera. There are no clouds, flashes, or intermediate cuts. The clicked coordinate sets both the satellite camera target and the local OSM scene center. Geometry is loaded before the camera handoff. Repeated inputs are blocked during handoff; Escape cancels the remaining animation. Reduced-motion users enter immediately. Tests cover timed handoff, repeat-click suppression, and cancellation.
 
 Scrolling or pinching to satellite zoom 17 automatically blends into the illustrative streets over 0.8 seconds. Zooming out past the street threshold reverses the blend and returns to satellite zoom 15 at the same map center; the two-level gap prevents accidental re-entry. Click entry remains available. City/year and the saved walking position survive both directions.
+
+## Location-matched SF streets
+
+SF entry now resolves the selected coordinate through the OpenStreetMap map API, then projects the nearby geometry into a 768 × 576 meter walkable scene at two world pixels per meter. Longitude is adjusted for latitude. Roads, paths, building footprints, green areas, inland water and tagged pitches keep their mapped positions. Soccer and basketball use the project's licensed LimeZu sprites fitted to the field orientation; American-football, tennis and baseball markings are drawn over the ground texture. Unspecified sports remain generic pitches rather than guessing a sport. Tree placement and building appearances are illustrative, not measured reproductions.
+
+`places.js` owns the bounded fetch, normalization, local projection, polygon collision, field orientation and scene generation. It resolves node references and joins complete multipolygon rings. Incomplete relation rings are omitted. A small in-memory cache reuses up to eight covered areas. The API is requested only when entering a place, with a 30-second timeout; no backend or new API key is needed. First entry may pause on the satellite view with a loading message. Entry animation starts only after geometry is ready. Errors leave the satellite view available, and Escape cancels pending handoff. Canceled request results cannot replace a newer scene.
+
+Coverage depends on OSM tagging. This is not satellite-image recognition, a survey-grade reconstruction, or a complete model of every landmark. Coastal ocean polygons and unmapped features are not reconstructed. Map data is independent of the historical housing year. Housing values remain citywide ACS medians; mapped buildings do not have individual asking rents. Residents are illustrative sprites placed on mapped routes and retain the existing selection IDs. Other cities and comparison mode retain their previous illustrative layouts.
+
+Map data © OpenStreetMap contributors, ODbL: https://www.openstreetmap.org/copyright. API reference: https://wiki.openstreetmap.org/wiki/API_v0.6#Retrieving_map_data_by_bounding_box:_GET_/api/0.6/map. Attribution is visible in both views. The new court assets and provenance are in `assets/places/`.
+
+Reproducible local examples (reload after changing the hash):
+- `/#map=17/37.768/-122.509`: Beach Chalet soccer pitches.
+- `/#map=17/37.7641/-122.4429`: Roosevelt Way / residential streets.
+
+Run `node --test tests/*.test.mjs`. Tests cover coordinate round trips, field classification, missing geometry, collision, fetch caching/failure, asynchronous preparation/cancellation, and the original zoom/selection contracts. Browser verification covers both example locations, field sprite orientation, mapped building inspection, and scroll return.

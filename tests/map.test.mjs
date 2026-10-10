@@ -70,3 +70,20 @@ test('canceling a return leaves the satellite map usable',()=>{
  s.controller.exit();s.controller.cancelTransition();s.advance(800);
  assert.equal(s.controller.active,true);assert.equal(s.controller.transitioning,false);assert.equal(s.returned(),1);
 });
+
+test('preparation completes before entry and cancellation ignores stale results',async()=>{
+ let resolve,entered=0,loading=false;const events={};let zoom=12;
+ const map={getCenter:()=>({lat:37.768,lng:-122.509}),getZoom:()=>zoom,on(e,fn){events[e]=fn;return this;},setView(c,z){zoom=z;return this;},invalidateSize(){},stop(){}};
+ const layer={on(){return this;},addTo(){return this;}};
+ const c=createCityOverview({element:{hidden:true,dataset:{}},leaflet:{map:()=>map,tileLayer:()=>layer},reducedMotion:true,prepare:()=>new Promise(r=>resolve=r),onPrepare:v=>loading=v,onEnter:o=>{assert.equal(o.latlng.lng,-122.509);entered++;},onError(){}});
+ c.open();c.enter();await Promise.resolve();assert.equal(loading,true);assert.equal(entered,0);
+ c.close();resolve();await new Promise(r=>setImmediate(r));assert.equal(entered,0);assert.equal(loading,false);
+ c.open();c.enter();await Promise.resolve();resolve();await new Promise(r=>setImmediate(r));assert.equal(entered,1);
+});
+
+test('failed map details keep the satellite view available to retry',async()=>{
+ let errors=0;const map={getCenter:()=>({lat:37.76,lng:-122.43}),getZoom:()=>12,on(){return this;},setView(){return this;},invalidateSize(){},stop(){}};
+ const layer={on(){return this;},addTo(){return this;}};
+ const c=createCityOverview({element:{hidden:true,dataset:{}},leaflet:{map:()=>map,tileLayer:()=>layer},prepare:async()=>{throw Error('network');},onPrepareError:()=>errors++,onEnter(){assert.fail('must not enter a fake fallback');},onError(){}});
+ c.open();c.enter();await new Promise(r=>setImmediate(r));assert.equal(c.active,true);assert.equal(c.transitioning,false);assert.equal(errors,1);
+});

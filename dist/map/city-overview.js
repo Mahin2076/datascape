@@ -1,23 +1,32 @@
 const SF_CENTER = [37.76,-122.435];
-export function createCityOverview({ onEnter, onReturn = ()=>{}, onError, reducedMotion = false, leaflet = globalThis.L, element = document.querySelector('#cityMap'), overlay = globalThis.document?.querySelector('#mapDive'), schedule = setTimeout, unschedule = clearTimeout }) {
-  let active = false, map = null, transitioning = false, handingOff = false, timers = [], returning = false, lastZoom = 12;
+export function createCityOverview({ onEnter, prepare, onPrepare = ()=>{}, onPrepareError = ()=>{}, onReturn = ()=>{}, onError, reducedMotion = false, leaflet = globalThis.L, element = document.querySelector('#cityMap'), overlay = globalThis.document?.querySelector('#mapDive'), schedule = setTimeout, unschedule = clearTimeout }) {
+  let active = false, map = null, transitioning = false, handingOff = false, timers = [], returning = false, lastZoom = 12, revision = 0;
   function cancelTransition(){
-    timers.forEach(unschedule);timers=[];transitioning=true;map?.stop?.();transitioning=false;
+    revision++;onPrepare(false);timers.forEach(unschedule);timers=[];transitioning=true;map?.stop?.();transitioning=false;
     if(overlay)overlay.hidden=true;element.classList?.remove('zoom-handoff','zoom-return');if(returning){returning=false;active=true;onReturn();}if(!active)element.hidden=true;
   }
   function close(){if(handingOff){active=false;return;}cancelTransition();active=false;element.hidden=true;}
   function enter(latlng, fromZoom=false){
     if(!active||transitioning)return;
-    if(reducedMotion){close();onEnter({animated:false});return;}
+    const target=latlng||map.getCenter();
+    if(prepare){
+      const ticket=++revision;transitioning=true;onPrepare(true);if(overlay)overlay.hidden=false;
+      Promise.resolve().then(()=>prepare(target)).then(prepared=>{
+        if(ticket!==revision)return;transitioning=false;onPrepare(false);begin(target,fromZoom,prepared);
+      }).catch(()=>{if(ticket!==revision)return;transitioning=false;onPrepare(false);if(overlay)overlay.hidden=true;onPrepareError();});
+    }else begin(target,fromZoom);
+  }
+  function begin(target,fromZoom,prepared){
+    if(reducedMotion){close();onEnter({animated:false,latlng:target,prepared});return;}
     transitioning=true;
-    const target=latlng||map.getCenter(),finalZoom=18;
+    const finalZoom=18;
     const duration=fromZoom?800:1800, handoff=fromZoom?0:1000;
     if(overlay)overlay.hidden=false;
     // One uninterrupted flight. Blend the live map into the moving street camera.
     map.flyTo(target,finalZoom,{duration:duration/1000,easeLinearity:.2});
     timers.push(schedule(()=>{
       active=false;handingOff=true;
-      try{onEnter({animated:true,latlng:target});}finally{handingOff=false;}
+      try{onEnter({animated:true,latlng:target,prepared});}finally{handingOff=false;}
       element.classList?.add('zoom-handoff');
     },handoff));
     timers.push(schedule(()=>{element.hidden=true;element.classList?.remove('zoom-handoff');transitioning=false;timers=[];if(overlay)overlay.hidden=true;},duration));
@@ -33,7 +42,10 @@ export function createCityOverview({ onEnter, onReturn = ()=>{}, onError, reduce
       }).on('tileerror',()=>{element.dataset.tileError='true';}).on('tileload',()=>{delete element.dataset.tileError;}).addTo(map);
       map.on('click',e=>enter(e.latlng));
       map.on('zoomend',()=>{const next=map.getZoom(),zoomingIn=next>lastZoom;lastZoom=next;if(active&&!transitioning&&zoomingIn&&next>=17)enter(map.getCenter(),true);});
-      map.setView(SF_CENTER,12,{animate:false});
+      const link=globalThis.location?.hash.match(/^#map=(\d+)\/(-?[\d.]+)\/(-?[\d.]+)$/);
+      const lat=Number(link?.[2]),lng=Number(link?.[3]);
+      const valid=link&&lat>=37.70&&lat<=37.815&&lng>=-122.52&&lng<=-122.35;
+      map.setView(valid?[lat,lng]:SF_CENTER,valid?Math.max(11,Math.min(18,Number(link[1]))):12,{animate:false});
       new ResizeObserver(()=>{if(active)map.invalidateSize({pan:false});}).observe(element);
     }
     map.invalidateSize({pan:false});return true;
@@ -56,6 +68,7 @@ export function createCityOverview({ onEnter, onReturn = ()=>{}, onError, reduce
     open,close,enter,exit,cancelTransition,
     get transitioning(){return transitioning;},
     get active(){return active;},get ready(){return !!map;},
+    getCenter(){return map?.getCenter()||{lat:SF_CENTER[0],lng:SF_CENTER[1]};},
     changeZoom(delta){if(active&&!transitioning)map.setZoom(map.getZoom()+(delta>0?1:-1));},
     pan(dx,dy){if(active&&!transitioning)map.panBy([-dx,-dy],{animate:false});},
     click(){if(!active||transitioning)return false;enter();return true;},
