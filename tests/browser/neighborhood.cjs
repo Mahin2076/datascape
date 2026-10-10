@@ -25,34 +25,25 @@ async function mockReply(route){
       await page.locator('.nc-input').fill('What is housing like here?');
       await page.locator('.nc-send').click();
       await page.waitForSelector('.nc-shell[data-method=ai]:not([aria-busy])',{timeout:60000});
-      await page.locator('.explore-menu summary').click();await page.locator('#housingYear').selectOption('2024');await page.locator('.explore-menu summary').click();
-      await page.locator('.nc-demo-launcher').click();
-      await page.waitForSelector('#game[data-view=street]',{timeout:45000});
-      await page.waitForFunction(()=>document.querySelector('.nc-step').textContent.startsWith('01'));
-      await page.waitForSelector('.nc-house');
-      const next=page.locator('.nc-demo-actions button').first();
+      assert.equal(await page.locator('.nc-demo,.nc-demo-launcher,.nc-house').count(),0);
+      const shellBox=await page.locator('.nc-shell').boundingBox();
+      assert.ok(shellBox.y>700,'Question bubble should sit at the bottom');
       const responsePromise=page.waitForResponse(r=>r.url().endsWith('/api/neighborhood-chat')&&r.request().method()==='POST');
-      await next.click();const response=await responsePromise;assert.equal(response.status(),200);const result=await response.json();
+      await page.locator('.nc-input').fill('What would help you afford housing here?');await page.locator('.nc-send').click();
+      const response=await responsePromise;assert.equal(response.status(),200);const result=await response.json();
       await page.waitForSelector('.nc-shell[data-method=ai]:not([aria-busy])');
       assert.equal(await page.locator('.nc-bubble').count(),result.replies.length);
       assert.ok(result.replies.length>0);assert.equal(await page.locator('.nc-reply').count(),result.replies.length);
-      assert.ok((await page.locator('.nc-house strong').allTextContents()).every(t=>t==='$2,724'));
       const boxes=await page.locator('.nc-bubble.is-speaking').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().toJSON()));
       for(let a=0;a<boxes.length;a++)for(let b=a+1;b<boxes.length;b++)assert.ok(boxes[a].right<=boxes[b].left||boxes[b].right<=boxes[a].left||boxes[a].bottom<=boxes[b].top||boxes[b].bottom<=boxes[a].top,'Speech bubbles must not overlap');
       await page.screenshot({path:`test-results/neighborhood-${width}.png`});
       await page.getByRole('button',{name:'Read all replies',exact:true}).click();
       assert.equal(await page.locator('.nc-transcript').isVisible(),true);
       await page.locator('.nc-transcript-head button').click();
-      const nextResponse=page.waitForResponse(r=>r.url().endsWith('/api/neighborhood-chat')&&r.request().method()==='POST');
-      await next.click();assert.equal((await nextResponse).status(),200);
-      await page.waitForSelector('.nc-shell[data-method=ai]:not([aria-busy])');
-      const selection=await page.evaluate(async()=>(await import('/app.js')).mapIntegration.selection.get());
-      assert.deepEqual(selection.scenario,{rentChangePct:10,incomeChangePct:5});
-      await next.click();assert.match(await page.locator('.nc-demo h2').innerText(),/more than its median/);
-      // A changed city clears the old residents and stops the guided story.
+      // A changed city clears the old residents.
       await page.locator('#citySelect').selectOption('1');
       await page.waitForFunction(()=>document.querySelectorAll('.nc-bubble').length===0);
-      assert.equal(await page.locator('.nc-demo').isVisible(),false);
+      assert.equal(await page.locator('.nc-demo').count(),0);
       // An API failure must be visible; no mock dialogue is substituted.
       await page.unroute(api);await page.route(api,route=>route.fulfill({status:502,json:{error:'Live replies could not be generated. Please retry.'}}));
       if(await page.locator('#game').getAttribute('data-view')!=='street')await page.locator('#mapToggle').click();await page.waitForSelector('#game[data-view=street]');
@@ -65,7 +56,7 @@ async function mockReply(route){
       const pending=page.waitForRequest(r=>r.url().endsWith('/api/neighborhood-chat'));
       await page.locator('.nc-input').fill('Could you stay after another increase?');
       await page.locator('.nc-form').evaluate(form=>form.requestSubmit());await pending;
-      await page.locator('.explore-menu summary').click();await page.locator('#housingYear').selectOption('2021');await page.waitForTimeout(700);
+      await page.locator('.explore-menu summary').click();await page.locator('#housingYear').selectOption('2024');await page.waitForTimeout(700);
       assert.equal(await page.locator('.nc-bubble').count(),0);
       assert.equal(await page.locator('.nc-shell').getAttribute('data-method'),null);
       assert.deepEqual(errors,[]);

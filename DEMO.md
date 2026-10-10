@@ -2,7 +2,7 @@
 
 ## Live neighborhood story
 
-Run `npm ci` and `npm start`, then open http://127.0.0.1:8124 and choose **Play demo**. Use **Next chapter** to reveal city-median house labels, a rent +10% shock with live speech bubbles, and income +5% with new replies. **Read all replies** shows every nearby household's line. The API key stays server-side in ignored `.env.local`; see [server/README.md](server/README.md) for the full flow and limits.
+Run `npm ci` and `npm start`, then open http://127.0.0.1:8124. Type a housing question in the bottom chat bubble and click **Ask neighbors**. The app opens the current neighborhood and displays live speech bubbles. **Read all replies** shows every nearby household’s line. There is no guided story or repeated house-price overlay. The API key stays server-side in ignored `.env.local`; see [server/README.md](server/README.md) for the API flow and limits.
 
 ## Original three-minute walkthrough
 
@@ -17,7 +17,7 @@ Run `npm ci` and `npm start`, then open http://127.0.0.1:8124 and choose **Play 
 
 Verified merged `main` at `b548aa3`: all 57 unit/HTTP tests passed; the housing walkthrough passed at 1440, 768 and 375 pixels; direct asking from the map and the four-chapter story passed with actual OpenAI replies on desktop (19 residents), plus controlled mobile replies (8 residents). The checks include provider failure handling and cancellation after changing the year. No application fixes were required; the legacy browser script and these instructions were updated for Explore.
 
-For presenting: keep `npm start` running, open the demo once to warm the map, choose **Play demo**, and walk through the four chapters. Live replies and first-time map loading require internet access. The locally configured API key was created with a 24-hour lifetime; replace it before presenting after it expires. The key is local to this machine and is not part of the repository.
+For presenting: keep `npm start` running, open the demo once to warm the map, type a housing question in the bottom bubble, and open the replies. Live replies and first-time map loading require internet access. The locally configured API key was created with a 24-hour lifetime; replace it before presenting after it expires. The key is local to this machine and is not part of the repository.
 
 ## Self-test coverage
 

@@ -4,14 +4,9 @@ Run `npm ci` and `npm start`, then open http://127.0.0.1:8124. The key stays in 
 
 ## Demo
 
-Click **Play demo**. The app loads the SF demo neighborhood, then **Next chapter** walks through four beats:
+Type a housing question in the compact chat bubble at the bottom and click **Ask neighbors**. Asking from the map opens the current neighborhood automatically. Replies appear above nearby residents and take turns in spatially separated waves. **Read all replies** opens the complete transcript. Walking pauses while replies are displayed and resumes when they are cleared.
 
-1. **Every window. A different story.** House labels show citywide Census median rent.
-2. **Then the rent goes up.** Rent +10%; every nearby on-screen resident receives a live generated line above their head.
-3. **Does a raise close the gap?** Keep the rent shock, add income +5%, and ask the same households what changes.
-4. **A city is more than its median.** Explain the distinction between Census observations, deterministic budget calculations and fictional AI dialogue.
-
-Speech bubbles take turns in spatially separated waves. Compact name bubbles keep other responding residents visible, **Read all replies** provides the complete transcript. Walking pauses while replies are displayed and resumes when they are cleared. The house lens is a city-median scenario, explicitly not an asking rent or a neighborhood estimate. The question box is always visible at the top. Asking from the map opens the current neighborhood automatically. Secondary map, year, resident and data controls are under **Explore**. The question box can ask any housing question about the current context; insufficient-data questions should receive a limitation rather than invented facts.
+Secondary map, year, resident and data controls are under **Explore**. The guided story and repeated house-price overlays have been removed. Insufficient-data questions should receive a limitation rather than invented facts.
 
 ## API contract and limits
 
@@ -27,7 +22,7 @@ Provider setup uses the [OpenAI structured-output contract](https://developers.o
 
 - `npm test`: data, budgets, map, residents, speaker-wave layout, validated AI context and local HTTP boundaries.
 - `npm run test:chat`: browser UX checks with explicitly mocked API replies, requiring the local server and network for the map.
-- `npm run test:chat:live`: actual OpenAI replies for the desktop guided story, controlled replies on mobile, and explicit upstream-failure coverage. This uses API credits.
+- `npm run test:chat:live`: actual OpenAI replies for the desktop neighborhood chat, controlled replies on mobile, and explicit upstream-failure coverage. This uses API credits.
 - `DEMO_URL=http://127.0.0.1:8124 npm run test:browser`: regression test for the earlier housing/profile flow.
 
 Screenshots go to ignored `test-results/`. Unit tests do not use API credits. The original resident profile panel continues to use its separately labeled scripted reaction rules.
