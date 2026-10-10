@@ -47,10 +47,10 @@ function board(ctx, x, y, w, h) {
  * the camera flies there on a timed ease, light and signs cross-fade, and the same
  * residents keep walking the whole time.
  */
-export default function PixelWorld({ shot, stats }) {
+export default function PixelWorld({ shot, stats, active = true }) {
   const ref = useRef(null);
-  const live = useRef({ shot, stats });
-  live.current = { shot, stats };
+  const live = useRef({ shot, stats, active });
+  live.current = { shot, stats, active };
   const reduced = useReducedMotion();
 
   useEffect(() => {
@@ -101,6 +101,7 @@ export default function PixelWorld({ shot, stats }) {
         const viewX = cam.x + Math.sin((now - flight.t0) / 5200) * drift;
         const viewY = cam.y + Math.cos((now - flight.t0) / 7100) * drift * 0.4;
         fade.light += ((s.light ?? 0) - fade.light) * (reduced ? 1 : Math.min(1, dt * 1.6));
+        if (!live.current.active) { raf = requestAnimationFrame(frame); return; }
 
         const dpr = Math.min(2, window.devicePixelRatio || 1);
         const w = canvas.clientWidth;

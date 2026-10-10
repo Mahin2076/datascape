@@ -73,7 +73,7 @@ export function TashaCard({ state, at }) {
             <span className="tc-avatar"><Sprite char={3} scale={3} /></span>
             <span>
               <b className="tc-name">Tasha</b>
-              <span className="tc-sub">Bakery owner · rents above the shop</span>
+              <span className="tc-sub">Bakery owner · renting here 9 years</span>
             </span>
             <AnimatePresence>
               {isPanel && (
@@ -144,29 +144,6 @@ export function Bubble({ text, at, show }) {
           <Typewriter text={text} delay={1.9} speed={32} />
         </motion.div>
       )}
-    </AnimatePresence>
-  );
-}
-
-/** Name tags floating over characters standing in the city. */
-export function NameTags({ tags }) {
-  const reduced = useReducedMotion();
-  return (
-    <AnimatePresence>
-      {tags.map((t, i) => (
-        <motion.div
-          key={t.name}
-          className="nametag"
-          style={{ left: t.at.x, top: t.at.y }}
-          initial={reduced ? false : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, transition: { duration: 0.2 } }}
-          transition={{ ...SPRING, delay: 1.4 + i * 0.2 }}
-        >
-          <b>{t.name}</b>
-          <span>{t.role}</span>
-        </motion.div>
-      ))}
     </AnimatePresence>
   );
 }
