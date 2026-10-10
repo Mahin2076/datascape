@@ -121,7 +121,7 @@ function budgetCard(view, ids) {
       burdenBar(after.rentToIncomeRatio),
       changed ? h('p', { class: 'rs-delta', text: d === 0
         ? 'No change to what’s left after rent.'
-        : `${money(Math.abs(d))} ${d < 0 ? 'less' : 'more'} left after rent each month than the ${baseline}.` }) : null,
+        : `${money(Math.abs(d))} ${d < 0 ? 'less' : 'more'} left after rent each month than the ${baseline}.` }) : '',
       h('p', { class: 'rs-note', text: '“Left after rent” is income minus rent, not disposable income: taxes, food, transport and other costs still come out of it.' }));
   }
   section.append(h('details', { class: 'rs-provenance' },

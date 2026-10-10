@@ -1,0 +1,4 @@
+#mapNavigation{flex-wrap:wrap;max-width:calc(100% - 24px)}
+#mapNavigation select{pointer-events:auto;max-width:155px;border:1px solid #8d9b89;background:#edede3;color:#294337;padding:6px;font:10px ui-monospace,monospace}
+#game .rs-panel{top:110px;max-height:calc(100% - 175px)}
+@media(max-width:650px){#game .rs-panel{top:auto;bottom:72px;max-height:60vh}#mapNavigation{gap:4px}#mapNavigation select{max-width:130px}}

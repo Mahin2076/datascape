@@ -1,0 +1,12 @@
+{
+  "name": "datascape",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs tests/residents/*.test.mjs",
+    "test:browser": "node tests/browser/demo.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
