@@ -1,3 +1,4 @@
+import {NEIGHBORHOOD,propertyForBuilding} from './neighborhood/data.js';
 import {createHousingData} from './data/index.js';
 import {walkingPosition} from './map/residents.js';
 import {createPlaceLoader,buildPlaceScene} from './map/places.js';
@@ -11,7 +12,7 @@ let db,atlas,art,chars;
 try{[db,atlas,art,chars]=await Promise.all([fetch('assets/data.json').then(r=>r.json()),fetch('assets/world-atlas.json').then(r=>r.json()),image('assets/world-atlas.png'),image('assets/sprites.png')]);}catch(e){$('#loading h1').textContent='The city could not load';$('#loading p').textContent='Please refresh to try again.';throw e;}
 const housingData=createHousingData(db);
 const W=1536,H=1152,cities=db.cities,origins=[[48,64],[560,64],[1072,64],[48,624],[560,624]], names=['Pacific Court','Hudson House','Juniper Place','Lakeside Row','Cedar Court'];
-let year=0,current=0,near=null,inspected=null,overview=true,zoom=1.65,ambient=!matchMedia('(prefers-reduced-motion: reduce)').matches,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,discovered=new Set(),clock=0,keys=new Set(),path=[],last=0,timer=null,toastTimer;
+let year=0,current=0,near=null,inspected=null,overview=true,zoom=1.65,ambient=true,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,discovered=new Set(),clock=0,keys=new Set(),path=[],last=0,timer=null,toastTimer;
 const player={x:320,y:304,dir:0,char:0,moving:false},cam={x:320,y:272,z:1.65};
 const selection = createSelectionStore({ cityIds: cities.map(c=>c.id), years: db.years });
 const residentEvents = new EventTarget();
@@ -25,15 +26,17 @@ async function preparePlace(center){
  const key=`${center.lat.toFixed(6)},${center.lng.toFixed(6)}`,started=performance.now();
  if(preparedPlaces.has(key)){const scene=await preparedPlaces.get(key);canvas.dataset.placeTiming=JSON.stringify({source:'prepared',loadMs:0,buildMs:0,totalMs:Math.round(performance.now()-started)});return scene;}
  const promise=(async()=>{
-  const features=await loadPlace(center),loaded=performance.now();
+  const features=await fetch('assets/rincon-map.json').then(r=>{if(!r.ok)throw Error('Neighborhood unavailable');return r.json();}),loaded=performance.now();
   const scene=buildPlaceScene(features,center,{patterns,sports,sprite,atlas});
+  const nearestHome=scene.buildings.slice().sort((a,b)=>Math.hypot(a.doorX-scene.spawn[0],a.doorY-scene.spawn[1])-Math.hypot(b.doorX-scene.spawn[0],b.doorY-scene.spawn[1]))[0];
+  if(nearestHome&&!scene.isBlocked(nearestHome.doorX,nearestHome.doorY+35))scene.spawn=[nearestHome.doorX,nearestHome.doorY+35];
   canvas.dataset.placeTiming=JSON.stringify({source:'generated',loadMs:Math.round(loaded-started),buildMs:Math.round(performance.now()-loaded),totalMs:Math.round(performance.now()-started)});return scene;
  })();
  preparedPlaces.set(key,promise);while(preparedPlaces.size>4)preparedPlaces.delete(preparedPlaces.keys().next().value);
  try{return await promise;}catch(error){preparedPlaces.delete(key);throw error;}
 }
 
-const cityMap = createCityOverview({ reducedMotion: reduced, prepare:preparePlace,preload:center=>loadPlace(center),onPrepare:loading=>{$('#game').dataset.loadingPlace=String(loading);$('#mapCaption').textContent=loading?'Loading this neighborhood…':'Scroll in to explore · scroll out to return';},onPrepareError:()=>toast('Could not load this neighborhood. Try again in a moment.'), onEnter:options=>enterStreet(options?.animated,options?.latlng,options?.prepared), onReturn:()=>{overview=true;refresh();}, onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
+const cityMap = createCityOverview({ reducedMotion: reduced, prepare:preparePlace,preload:()=>Promise.resolve(),onPrepare:loading=>{$('#game').dataset.loadingPlace=String(loading);$('#mapCaption').textContent=loading?'Loading this neighborhood…':'Scroll in to explore · scroll out to return';},onPrepareError:()=>toast('Could not load this neighborhood. Try again in a moment.'), onEnter:options=>enterStreet(options?.animated,options?.latlng,options?.prepared), onReturn:()=>{overview=true;refresh();}, onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
 function emitSelection(){
  if(syncingSelection)return;
  selection.set({cityId:cities[current].id,year:db.years[year]});
@@ -46,11 +49,12 @@ export const mapIntegration = Object.freeze({
  getSelectedResident(){return selectedResident;},
  getResidentTargets(){return sceneSnapshot().residents;},
  getScene:sceneSnapshot,
+ walkToBuilding(id){const b=mappedScene?.buildings.find(b=>String(b.id)===String(id));if(b)routeTo(b.doorX,b.doorY+35);},
  enterNeighborhood(){if(overview){if(cityMap.active)return cityMap.enter();enterStreet();}},
  onSceneFrame(callback){sceneListeners.add(callback);return()=>sceneListeners.delete(callback);},
  async enterDemoNeighborhood(signal){
   if(!overview)return;
-  const center={lat:37.7641,lng:-122.4429};
+  const center=NEIGHBORHOOD.center;
   selection.set({cityId:'sf',year:2024});
   const scene=await preparePlace(center);if(signal?.aborted)return;
   cityMap.close();enterStreet(false,center,scene);
@@ -65,7 +69,7 @@ function sceneSnapshot(){
   regionKey:mappedScene?`${current}:${mappedScene.center.lat.toFixed(5)},${mappedScene.center.lng.toFixed(5)}`:`${current}:illustrative`,
   width:canvas.clientWidth,height:canvas.clientHeight,
   residents:active?residentHits.filter(a=>a.city===current).map(a=>({residentId:a.id,...project(a.x,a.y-8),distance:Math.hypot(a.x-player.x,a.y-player.y)})):[],
-  buildings:active?(mappedScene?mappedScene.buildings:buildings).filter(b=>mappedScene||b.city===current).map((b,i)=>({id:String(b.id??i),title:b.title,...project(b.x+b.w/2,b.y),width:b.w*t.scale,height:(b.foot-b.y)*t.scale,distance:Math.hypot(b.doorX-player.x,b.doorY-player.y)})):[]};
+  buildings:active?(mappedScene?mappedScene.buildings:buildings).filter(b=>mappedScene||b.city===current).map((b,i)=>({id:String(b.id??i),title:b.title,property:propertyForBuilding(b.id??i),...project(b.x+b.w/2,b.y),width:b.w*t.scale,height:(b.foot-b.y)*t.scale,distance:Math.hypot(b.doorX-player.x,b.doorY-player.y)})):[]};
 }
 selection.subscribe(value=>{
  if(cities[current].id===value.cityId&&db.years[year]===value.year)return;
@@ -168,7 +172,7 @@ function refresh(){
  $('#storyStatus').textContent=year===0?'2021 baseline: both growth bars start at zero.':`${db.years[year]}: ${cities.filter((_,i)=>{let g=growth(i);return g.rent>g.income}).length} of 5 cities show rent growing faster than household income.`;$('#year').textContent=db.years[year];$('#time').value=year;$('#citySelect').value=current;$('#state').textContent=cities[current].state;$('#districtTitle').textContent=cities[current].name;$('#districtSubtitle').textContent=['A new perspective on the Golden City.','Big-city dreams. Real-world prices.','A growing city, a changing cost of living.','Find a home beside the lake.','A little rain. A different kind of city.'][current];$('#miniLabel').textContent=cities[current].name.toUpperCase();$('#discoveries').textContent=`${discovered.size} / 5 cities discovered`;if(inspected)showInspection(inspected,false);
 }
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function showInspection(b,record=true){if(!overview)b={...b,city:current};inspected=b;if(record){discovered.add(b.city);$('#quest').hidden=true;refresh();}let c=cities[b.city],d=c.data[year],a=c.data[0],g=d.rent/a.rent-1,ig=d.income/a.income-1;$('#inspection').hidden=false;$('#inspection').innerHTML=`<button class="close" id="closeInspection" aria-label="Close building details">×</button><span class="type">${c.name.toUpperCase()} · HISTORICAL HOUSING DATA</span><h2>${escapeHTML(b.title)}</h2><span class="sub">${b.mapped?'Neighborhood location · illustrative house':'Fictional building'} · ${c.name}, ${c.state}</span><div class="price">${money(d.rent)} <small>/ month</small></div><p class="disclaimer">City median gross rent, not this building’s asking price.<br>ACS ${d.period} five-year estimate.</p><div class="stats"><div><small>HOUSEHOLD INCOME</small><b>${money(d.income)}</b></div><div><small>ANNUAL RENT / INCOME</small><b>${pct(ratio(d))}</b></div><div><small>POPULATION</small><b>${d.population.toLocaleString()}</b></div><div><small>HOUSING VACANCY</small><b>${pct(d.vacantUnits/d.housingUnits)}</b></div></div><p class="trend">${year?`Since 2021: rent <b>+${pct(g)}</b>; household income <b>+${pct(ig)}</b>. Gap: <b>${((g-ig)*100).toFixed(1)} percentage points</b>.`:'This is the 2021 baseline. Move the time slider to see what changed.'}</p><button class="source-button" id="exactSources">View exact values & Census sources ↗</button>`;$('#closeInspection').onclick=()=>{inspected=null;$('#inspection').hidden=true};$('#exactSources').onclick=()=>showSources(b.city);}
+function showInspection(b,record=true){if(mappedScene){document.dispatchEvent(new CustomEvent('rincon-inspect',{detail:String(b.id)}));return;}if(!overview)b={...b,city:current};inspected=b;if(record){discovered.add(b.city);$('#quest').hidden=true;refresh();}let c=cities[b.city],d=c.data[year],a=c.data[0],g=d.rent/a.rent-1,ig=d.income/a.income-1;$('#inspection').hidden=false;$('#inspection').innerHTML=`<button class="close" id="closeInspection" aria-label="Close building details">×</button><span class="type">${c.name.toUpperCase()} · HISTORICAL HOUSING DATA</span><h2>${escapeHTML(b.title)}</h2><span class="sub">${b.mapped?'Neighborhood location · illustrative house':'Fictional building'} · ${c.name}, ${c.state}</span><div class="price">${money(d.rent)} <small>/ month</small></div><p class="disclaimer">City median gross rent, not this building’s asking price.<br>ACS ${d.period} five-year estimate.</p><div class="stats"><div><small>HOUSEHOLD INCOME</small><b>${money(d.income)}</b></div><div><small>ANNUAL RENT / INCOME</small><b>${pct(ratio(d))}</b></div><div><small>POPULATION</small><b>${d.population.toLocaleString()}</b></div><div><small>HOUSING VACANCY</small><b>${pct(d.vacantUnits/d.housingUnits)}</b></div></div><p class="trend">${year?`Since 2021: rent <b>+${pct(g)}</b>; household income <b>+${pct(ig)}</b>. Gap: <b>${((g-ig)*100).toFixed(1)} percentage points</b>.`:'This is the 2021 baseline. Move the time slider to see what changed.'}</p><button class="source-button" id="exactSources">View exact values & Census sources ↗</button>`;$('#closeInspection').onclick=()=>{inspected=null;$('#inspection').hidden=true};$('#exactSources').onclick=()=>showSources(b.city);}
 function showSources(i=current){let c=cities[i],d=c.data[year];$('#sourceDetails').innerHTML=`<p><b>${c.name} · ${d.period}</b><br>Median gross rent: ${money(d.rent)} ± ${money(d.rentMoe)}<br>Median household income: ${money(d.income)} ± ${money(d.incomeMoe)}<br>Margins of error at 90% confidence.</p>`;$('#sourceLinks').innerHTML=Object.entries(d.sources).map(([k,v])=>`<a target="_blank" rel="noreferrer" href="${v}">${k.toUpperCase()} ↗</a>`).join('');keys.clear();path=[];$('#sources').showModal();}
 function toast(s){$('#toast').textContent=s;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2600)}
 function travel(i){mappedScene=null;delete canvas.dataset.place;if(!overview)streetPositions.set(current,{x:player.x,y:player.y});cityMap.close();selectedResident=null;delete canvas.dataset.selectedResident;current=i;player.x=origins[i][0]+272;player.y=origins[i][1]+240;player.dir=0;path=[];keys.clear();inspected=null;$('#inspection').hidden=true;overview=false;$('#mapLegend').hidden=true;$('#locationBanner').hidden=false;cam.x=player.x;cam.y=player.y-28;cam.z=zoom;refresh();}

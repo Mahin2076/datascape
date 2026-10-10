@@ -1,3 +1,4 @@
+import {mountNeighborhood} from './neighborhood/index.js';
 import { mountNeighborhoodChat } from './chat/index.js';
 import { mapIntegration } from './app.js';
 import { createResidentStories } from './residents/index.js';
@@ -45,3 +46,5 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape')explore.open
 document.addEventListener('pointerdown',event=>{if(!explore.contains(event.target))explore.open=false;});
 
 mountNeighborhoodChat({root,map:mapIntegration,closeProfiles:()=>stories.close()});
+
+mountNeighborhood({root,map:mapIntegration});

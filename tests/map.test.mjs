@@ -28,7 +28,7 @@ function setup(animated=false){
 }
 test('live map opens, zooms without entering, clicks enter once, and reopens',()=>{
  const s=setup();assert.equal(s.controller.open(),true);assert.equal(s.element.hidden,false);
- s.controller.changeZoom(1);assert.equal(s.zoom(),13);assert.equal(s.entered(),0);
+ s.controller.changeZoom(1);assert.equal(s.zoom(),16);assert.equal(s.entered(),0);
  s.click();assert.equal(s.entered(),1);assert.equal(s.element.hidden,true);assert.equal(s.controller.click(),false);
  s.controller.open();assert.equal(s.element.hidden,false);s.controller.enter();assert.equal(s.entered(),2);
 });
@@ -56,7 +56,7 @@ test('cinematic transition enters only at handoff, blocks repeat clicks, and can
 
 for(const animated of [false,true])test(`scroll threshold round trip preserves hysteresis (animated=${animated})`,()=>{
  const s=setup(animated);s.controller.open();
- for(let i=0;i<4;i++)s.controller.changeZoom(1);
+ for(let i=0;i<1;i++)s.controller.changeZoom(1);
  assert.equal(s.entered(),0);
  s.controller.changeZoom(1);s.advance(0);assert.equal(s.entered(),1);
  s.advance(800);assert.equal(s.controller.active,false);
@@ -75,7 +75,7 @@ test('preparation completes before entry and cancellation ignores stale results'
  let resolve,entered=0,loading=false;const events={};let zoom=12;
  const map={getCenter:()=>({lat:37.768,lng:-122.509}),getZoom:()=>zoom,on(e,fn){events[e]=fn;return this;},setView(c,z){zoom=z;return this;},invalidateSize(){},stop(){}};
  const layer={on(){return this;},addTo(){return this;}};
- const c=createCityOverview({element:{hidden:true,dataset:{}},leaflet:{map:()=>map,tileLayer:()=>layer},reducedMotion:true,prepare:()=>new Promise(r=>resolve=r),onPrepare:v=>loading=v,onEnter:o=>{assert.equal(o.latlng.lng,-122.509);entered++;},onError(){}});
+ const c=createCityOverview({element:{hidden:true,dataset:{}},leaflet:{map:()=>map,tileLayer:()=>layer},reducedMotion:true,prepare:()=>new Promise(r=>resolve=r),onPrepare:v=>loading=v,onEnter:o=>{assert.equal(o.latlng.lng,-122.3908);entered++;},onError(){}});
  c.open();c.enter();await Promise.resolve();assert.equal(loading,true);assert.equal(entered,0);
  c.close();resolve();await new Promise(r=>setImmediate(r));assert.equal(entered,0);assert.equal(loading,false);
  c.open();c.enter();await Promise.resolve();resolve();await new Promise(r=>setImmediate(r));assert.equal(entered,1);
