@@ -12,7 +12,7 @@ let db,atlas,art,chars;
 try{[db,atlas,art,chars]=await Promise.all([fetch('assets/data.json').then(r=>r.json()),fetch('assets/world-atlas.json').then(r=>r.json()),image('assets/world-atlas.png'),image('assets/sprites.png')]);}catch(e){$('#loading h1').textContent='The city could not load';$('#loading p').textContent='Please refresh to try again.';throw e;}
 const housingData=createHousingData(db);
 const W=1536,H=1152,cities=db.cities,origins=[[48,64],[560,64],[1072,64],[48,624],[560,624]], names=['Pacific Court','Hudson House','Juniper Place','Lakeside Row','Cedar Court'];
-let year=0,current=0,near=null,inspected=null,overview=true,zoom=1.65,ambient=!matchMedia('(prefers-reduced-motion: reduce)').matches,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,discovered=new Set(),clock=0,keys=new Set(),path=[],last=0,timer=null,toastTimer;
+let year=0,current=0,near=null,inspected=null,overview=true,zoom=1.65,ambient=true,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,discovered=new Set(),clock=0,keys=new Set(),path=[],last=0,timer=null,toastTimer;
 const player={x:320,y:304,dir:0,char:0,moving:false},cam={x:320,y:272,z:1.65};
 const selection = createSelectionStore({ cityIds: cities.map(c=>c.id), years: db.years });
 const residentEvents = new EventTarget();

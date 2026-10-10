@@ -25,13 +25,11 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
   root.append(overlay,shell,transcript);root.classList.add('chat-open');
   let scene=map.getScene(),selection=map.selection.get(),housing=null,replies=[],bubbleNodes=new Map();
   let request=null,version=0,history=[],wave=0,waveAt=0,housingVersion=0,region=scene.regionKey;
-  let originalAmbient=null;
 
   function open(){closeProfiles();shell.hidden=false;root.classList.add('chat-open');input.focus();}
   function clearReplies(){
     version++;request?.abort();request=null;replies=[];bubbleNodes.forEach(n=>n.remove());bubbleNodes.clear();transcriptToggle.hidden=true;submit.disabled=false;submit.textContent='Ask neighbors';shell.removeAttribute('aria-busy');
     delete shell.dataset.replyCount;delete shell.dataset.method;
-    if(originalAmbient!==null){map.setAmbient(originalAmbient);originalAmbient=null;}
   }
   async function refreshHousing(){const id=++housingVersion;try{const next=await getHousing(selection.cityId,selection.year);if(id===housingVersion)housing=next;}catch{if(id===housingVersion)housing=null;}}
   void refreshHousing();
@@ -53,7 +51,6 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
     if(!people.length){open();status.textContent='Zoom into a street and move near residents before asking.';return false;}
     clearReplies();open();
     const token=version,controller=new AbortController();request=controller;
-    originalAmbient=scene.ambient;map.setAmbient(false);
     const askedSelection=structuredClone(selection);const captured=people.map(p=>p.residentId);
     submit.disabled=true;submit.textContent='Listening…';shell.setAttribute('aria-busy','true');
     status.textContent=`Asking ${people.length} nearby residents…`;

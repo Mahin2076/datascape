@@ -4,7 +4,7 @@ Run `npm ci` and `npm start`, then open http://127.0.0.1:8124. The key stays in 
 
 ## Demo
 
-Type a housing question in the compact chat bubble at the bottom and click **Ask neighbors**. Asking from the map opens the current neighborhood automatically. Replies appear above nearby residents and take turns in spatially separated waves. **Read all replies** opens the complete transcript. Walking pauses while replies are displayed and resumes when they are cleared.
+Type a housing question in the compact chat bubble at the bottom and click **Ask neighbors**. Asking from the map opens the current neighborhood automatically. Replies appear above nearby residents and take turns in spatially separated waves. **Read all replies** opens the complete transcript. Citizens continue walking while questions load and replies follow their positions.
 
 Secondary map, year, resident and data controls are under **Explore**. The guided story and repeated house-price overlays have been removed. Insufficient-data questions should receive a limitation rather than invented facts.
 
