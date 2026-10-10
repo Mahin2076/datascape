@@ -25,8 +25,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .num { font-variant-numeric: tabular-nums; }
 .hl-rent { color: var(--rent-ink); }
 
-.viewport { position: fixed; inset: 0; display: grid; place-items: center; overflow: hidden; }
-.stage { position: relative; width: 1600px; height: 900px; flex: none; transform-origin: center; overflow: hidden; background: #5d775f; }
+/* The 1600x900 stage is centered absolutely and scaled to fit any window. */
+.viewport { position: fixed; inset: 0; overflow: hidden; }
+.stage { position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px; transform-origin: center; overflow: hidden; background: #5d775f; }
 
 /* ---------- the text card (one element, three shapes) ---------- */
 .panel { position: absolute; z-index: 4; border: 1px solid transparent; }

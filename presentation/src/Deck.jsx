@@ -115,7 +115,7 @@ export default function Deck() {
   return (
     <MotionConfig reducedMotion="user">
       <main className="viewport">
-        <div className="stage" style={{ transform: `scale(${scale})` }} aria-roledescription="slide deck">
+        <div className="stage" style={{ transform: `translate(-50%, -50%) scale(${scale})` }} aria-roledescription="slide deck">
           <PixelWorld shot={slide.shot} stats={STATS} />
           <Scrims variant={slide.panel} />
           <LayoutGroup>
