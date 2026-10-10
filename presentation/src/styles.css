@@ -188,3 +188,42 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .verdict { font-size: 13px; font-weight: 700; color: var(--ink-2); }
 .verdict.v-income_outpaced { color: var(--income-ink); }
 .verdict.v-rent_outpaced { color: var(--rent-ink); }
+
+/* ---------- the app's neighborhood chat (dist/chat/chat.css), sized for the stage ---------- */
+.chat-layer { z-index: 3; pointer-events: none; opacity: 0; }
+.chat-anchor { position: absolute; left: 0; top: 0; visibility: hidden; will-change: transform; }
+.nc-bubble {
+  position: absolute; left: 0; bottom: 14px; translate: -50% 0; transform-origin: 50% 100%;
+  width: 232px; padding: 11px 14px 10px; border: 1.5px solid #354d3d; border-radius: 10px 10px 10px 3px;
+  background: #fffef2; color: #314334; font-size: 15px; line-height: 1.4;
+  box-shadow: 0 4px 0 #172d2b33, 0 12px 26px #233c2533;
+}
+.nc-bubble::after {
+  content: ''; position: absolute; left: calc(50% - 7px); bottom: -8px; width: 12px; height: 12px;
+  background: inherit; border-right: 1.5px solid #354d3d; border-bottom: 1.5px solid #354d3d; rotate: 45deg;
+}
+.nc-bubble b { font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px; color: #997c3d; }
+.nc-bubble p { margin: 3px 0 7px; }
+.nc-bubble em { font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; }
+.nc-bubble em.up { color: var(--rent-ink); }
+.nc-bubble em.ok { color: var(--income-ink); }
+.nc-bubble small { display: block; margin-top: 3px; font-size: 11px; color: var(--ink-3); }
+.share { display: flex; align-items: center; gap: 10px; }
+.share-track { position: relative; flex: 1; height: 10px; background: #e6e6d8; }
+.share-fill { position: absolute; inset: 0; background: var(--rent); transform-origin: 0 50%; }
+.share-tick { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink); }
+.share b { min-width: 46px; text-align: right; font-size: 17px; letter-spacing: 0; text-transform: none; color: var(--ink); font-variant-numeric: tabular-nums; }
+.nc-shell {
+  position: absolute; left: 690px; bottom: 64px; width: 800px; padding: 18px 22px 14px;
+  background: #f7f3e8; border: 1px solid #acb1a0; border-radius: 30px 30px 30px 8px; color: #233b33;
+  box-shadow: 0 10px 44px #132b3648; transform-origin: 0 100%;
+}
+.nc-shell h2 { font-size: 19px; font-weight: 600; line-height: 1.2; }
+.nc-context { margin: 5px 0 12px; font-size: 13px; color: #697b6a; }
+.nc-form { display: flex; gap: 10px; }
+.nc-input { flex: 1; min-height: 52px; padding: 14px 16px; background: #fffef9; border: 1px solid #bac3b4; border-radius: 18px; font-size: 16px; color: #213c34; }
+.nc-input .caret { display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -3px; background: #bb9952; animation: blink 1s steps(1) infinite; }
+.nc-send { align-self: stretch; display: grid; place-items: center; padding: 0 18px; border-radius: 18px; background: #264d3e; color: #ffefd0; font-size: 14px; font-weight: 600; }
+.nc-status { margin-top: 10px; font-size: 11px; color: #7d786a; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .nc-input .caret { animation: none; } }

@@ -5,6 +5,7 @@ import { money } from './ui/motion.jsx';
 import { pxPerMeter } from './viz/SatelliteLayer.jsx';
 import { projectStreet, STREET } from './viz/StreetWorld.jsx';
 import { projection } from '../../dist/map/places.js';
+import { HOUSEHOLDS, HOUSING } from './viz/households.js';
 
 const C = facts.cities;
 // Same order as the five blocks in the app's "Compare cities" view.
@@ -51,10 +52,21 @@ const MAP_WIDE = { x: 174, y: 576, z: 0.573 };
 // The pixel street starts growing in once the dive is well underway.
 const FADE_IN_AFTER_DIVE = { delay: 1.15, duration: 1.1 };
 
+// What the 5% raise does, read off the computed budgets rather than assumed.
+const RAISE = {
+  allKeepMore: HOUSEHOLDS.every((h) => h.raise.left > h.before.left),
+  allShareHigher: HOUSEHOLDS.every((h) => h.raise.share > h.before.share),
+};
+const RAISE_BODY = RAISE.allKeepMore && RAISE.allShareHigher
+  ? 'In dollars, yes: all four keep a bit more each month than before rent went up. But rent still takes a bigger share of every paycheck.'
+  : 'Not for everyone. Watch where each bar ends up against the tick where it started.';
+
 /** Slides need the resident's home position, which comes from the mapped scene. */
 export function buildSlides(home) {
   const near = { x: home.x - 180 / 3.2, y: home.y - 150 / 3.2, z: 3.2 };
   const street = { x: home.x - 250 / 1.7, y: home.y - 70 / 1.7, z: 1.7 };
+  // Asking the whole block pulls back a little so more of the neighbors are in view.
+  const block = { x: home.x - 250 / 1.4, y: home.y - 40 / 1.4, z: 1.4 };
   const tasha = projectStreet(near, home.x, home.y);
   const cardAt = { x: tasha.x + 120, y: 110 };
   const bubbleAt = { x: tasha.x, y: tasha.y - 18 * near.z - 18 };
@@ -133,6 +145,26 @@ export function buildSlides(home) {
       notes: 'The walkers are decorative; the share is the Census number. Say “if they’re typical”.',
     },
     {
+      id: 'ask',
+      panel: 'card',
+      sat: { center: PLACES.roosevelt.center, zoom: 18, duration: 0 },
+      street: { place: 'roosevelt', camera: block, highlight: true, chat: 'shock' },
+      headline: 'So you can ask the whole block.',
+      body: 'Type a housing question and the people nearby answer from their own budgets. Here, everyone’s rent goes up 10%.',
+      foot: `Fictional households built on San Francisco’s Census medians (ACS ${HOUSING.period}). In the app they answer in their own words, written live by AI. The numbers are calculated, not generated.`,
+      notes: 'This is the app’s neighborhood chat: type a question in the bubble at the bottom and the people nearby answer. The bars are each household’s rent as a share of income; the tick is where they started. If there’s time, switch to the live app and ask it something.',
+    },
+    {
+      id: 'payrise',
+      panel: 'card',
+      sat: { center: PLACES.roosevelt.center, zoom: 18, duration: 0 },
+      street: { place: 'roosevelt', camera: { ...block }, highlight: true, chat: 'raise' },
+      headline: 'Does a 5% raise close the gap?',
+      body: RAISE_BODY,
+      foot: `Rent +10% and income +5% on ACS ${HOUSING.period} medians. A what-if, not a forecast.`,
+      notes: 'Same households, same question with a raise added. Point at the ticks: the bars come back, but not all the way.',
+    },
+    {
       id: 'park',
       panel: 'card',
       sat: { center: PLACES.beachchalet.center, zoom: 18, duration: 3.2 },
@@ -185,7 +217,7 @@ export function buildSlides(home) {
       sat: { ...SF_WIDE, duration: 2.6 },
       dusk: true,
       headline: 'Can you afford to stay?',
-      body: 'Click anywhere in San Francisco and see who lives there.',
+      body: 'Click anywhere in San Francisco, meet who lives there, and ask them.',
       foot: 'Imagery: Esri, Vantor, Earthstar Geographics, GIS User Community. Map data © OpenStreetMap contributors (ODbL). Data: U.S. Census Bureau, American Community Survey. Art: Modern Exteriors by LimeZu; characters by route1rodent / javikolog (CC BY-SA 3.0).',
       notes: 'End on the question, over the whole city.',
     },

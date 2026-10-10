@@ -10,12 +10,22 @@ import soccerUrl from '../../../dist/assets/places/soccer.png';
 import basketballUrl from '../../../dist/assets/places/basketball.png';
 import { drawCharacter } from './world.js';
 import { backingScale, createCamera } from './camera.js';
+import { HOUSEHOLDS, TASHA_INDEX, householdOfWalker, spriteOfWalker } from './households.js';
 
 export const STREET = { w: WIDTH, h: HEIGHT };
 const STAGE = { w: 1600, h: 900 };
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
 const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+// Chat layout on the stage (px): speech bubbles stay right of the text card and above
+// the chat box at the bottom, and never cover each other.
+const CHAT_STAGE = { l: 650, r: 1590, t: 24, b: 836 };
+const CHAT_BOX = { l: 690, r: 1490, t: 640, b: 860 };
+const HEAD = 22; // world px from a walker's feet to the top of its head
+const bubbleBox = ([x, y], pad = 0) => ({ l: x - 122 - pad, r: x + 122 + pad, t: y - 192 - pad, b: y + 6 + pad });
+const within = (a, o) => a.l >= o.l && a.r <= o.r && a.t >= o.t && a.b <= o.b;
+const overlaps = (a, o) => a.l < o.r && o.l < a.r && a.t < o.b && o.t < a.b;
+
 // Smoothstep ramp for the patch's feathered edges.
 const RAMP = [[0, 0], [0.25, 0.16], [0.5, 0.5], [0.75, 0.84], [1, 1]];
 
@@ -86,14 +96,54 @@ function sceneFor(place, art, sports) {
 }
 
 /**
+ * Picks one walker per household (Tasha stands at home), nearest the home first, laid
+ * out so no bubble covers another or the chat box. Walkers hidden behind a roof are
+ * skipped; spacing relaxes before anyone goes missing.
+ * toStage projects world (feet) positions with the camera the slide is heading to.
+ */
+function pickChat(scene, clock, toStage) {
+  const home = toStage(scene.home.x, scene.home.y);
+  const taken = [CHAT_BOX, bubbleBox(home)];
+  const free = (box) => within(box, CHAT_STAGE) && taken.every((o) => !overlaps(box, o));
+  const behindRoof = (p) => scene.buildings.some((b) => p.x > b.x - 4 && p.x < b.x + b.w + 4 && p.y > b.y && p.y < b.foot);
+  const walkers = scene.residents
+    .map((r, i) => {
+      const p = walkingPosition(r.route, clock, r.speed, r.phase);
+      const at = toStage(p.x, p.y);
+      return { i, at, kind: householdOfWalker(i), d: Math.hypot(at[0] - home[0], at[1] - home[1]), hidden: behindRoof(p) };
+    })
+    .sort((a, b) => a.d - b.d);
+  const speakers = HOUSEHOLDS.map(() => null);
+  const kinds = HOUSEHOLDS.map((_, k) => k).filter((k) => k !== TASHA_INDEX);
+  // Scarcest household first, so a rare one isn't crowded out.
+  const count = (k) => walkers.filter((w) => w.kind === k && !w.hidden && free(bubbleBox(w.at))).length;
+  const attempts = [[16, false], [0, false], [0, true], [-24, true], [-70, true]];
+  for (const k of kinds.sort((a, b) => count(a) - count(b))) {
+    for (const [pad, allowHidden] of attempts) {
+      const w = walkers.find((c) => c.kind === k && (allowHidden || !c.hidden) && free(bubbleBox(c.at, pad)));
+      if (w) { speakers[k] = w.i; taken.push(bubbleBox(w.at)); break; }
+    }
+    // Last resort: every household speaks, even if its bubble has to overlap a little.
+    if (speakers[k] === null) {
+      const w = walkers.find((c) => c.kind === k && within(bubbleBox(c.at), CHAT_STAGE) && !overlaps(bubbleBox(c.at), CHAT_BOX));
+      if (w) { speakers[k] = w.i; taken.push(bubbleBox(w.at)); }
+    }
+  }
+  return speakers;
+}
+
+/**
  * The app's street scene (dist/map/places.js) for a real San Francisco location, built
  * from snapshotted OpenStreetMap data. Walkers follow mapped routes like in the app.
  * shot: { place, camera: {x, y, z}, mode: 'pixel'|'layers', tags, highlight, follow,
- *         fade: {delay, duration}, fadeOut }
+ *         fade: {delay, duration}, fadeOut, chat }
+ * chat: ref to a callback that receives, every frame while shot.chat is set, where the
+ * four households' speakers are on the stage (null when off).
+ * Walkers ease to a stop while the chat is up, as in the app.
  * visible: whether the street should be showing. It cross-fades over the satellite with
  * feathered edges, riding the satellite's camera so the roads stay on the real roads.
  */
-export default function StreetWorld({ places, shot, visible, satellite }) {
+export default function StreetWorld({ places, shot, visible, satellite, chat }) {
   const ref = useRef(null);
   const live = useRef({ shot, visible });
   live.current = { shot, visible };
@@ -114,6 +164,8 @@ export default function StreetWorld({ places, shot, visible, satellite }) {
       let modeAt = 0;
       let last = performance.now();
       let clock = 0;
+      let pace = 1; // walking speed, eased to 0 while the chat is up
+      let picks = null;
       // Reveal amount 0..1, driven by a small queue of timed eases.
       let amount = live.current.visible ? 1 : 0;
       let queue = [];
@@ -123,8 +175,9 @@ export default function StreetWorld({ places, shot, visible, satellite }) {
       const frame = (now) => {
         const dt = Math.min(0.05, (now - last) / 1000);
         last = now;
-        if (!reduced) clock += dt;
         const { shot: s, visible } = live.current;
+        pace = reduced ? (s.chat ? 0 : 1) : pace + ((s.chat ? 0 : 1) - pace) * Math.min(1, dt * 3);
+        if (!reduced) clock += dt * pace;
         if (s !== lastShot || visible !== wasVisible) {
           const fade = s.fade ?? { delay: 0, duration: 0.6 };
           if (reduced) { queue = []; amount = visible ? 1 : 0; }
@@ -190,7 +243,7 @@ export default function StreetWorld({ places, shot, visible, satellite }) {
             const objs = scene.buildings.map((b) => ({ z: b.foot, draw: () => ctx.drawImage(art, ...atlas[b.n], b.x, b.y, b.w, b.h) }));
             scene.residents.forEach((r, i) => {
               const pos = walkingPosition(r.route, clock, r.speed, r.phase);
-              objs.push({ z: pos.y, draw: () => drawCharacter(ctx, chars, i % 10, pos.x, pos.y, pos.dir, !reduced, clock + i * 0.37) });
+              objs.push({ z: pos.y, draw: () => drawCharacter(ctx, chars, spriteOfWalker(i), pos.x, pos.y, pos.dir, !reduced && pace > 0.05, clock + i * 0.37) });
             });
             if (s.highlight) {
               const hm = scene.home;
@@ -264,6 +317,26 @@ export default function StreetWorld({ places, shot, visible, satellite }) {
           // The mapped patch dissolves into the satellite toward its edges, so it never
           // reads as a block; the whole layer cross-fades in and out by opacity.
           featherPatch(ctx, w / 2 - cam.x * cam.z, h / 2 - cam.y * cam.z, WIDTH * cam.z, HEIGHT * cam.z, w, h, dpr);
+        }
+        // Chat overlay feed: speaker heads in stage coordinates.
+        const feed = chat?.current;
+        if (s.chat && scene && feed) {
+          const w = canvas.clientWidth;
+          const h = canvas.clientHeight;
+          const toStage = (x, y) => [w / 2 + (x - cam.x) * cam.z, h / 2 + (y - cam.y) * cam.z];
+          // Pick against where the camera is heading, not where it is mid-move.
+          picks ??= pickChat(scene, clock, (x, y) => [w / 2 + (x - s.camera.x) * s.camera.z, h / 2 + (y - s.camera.y) * s.camera.z]);
+          const head = (i) => {
+            const p = walkingPosition(scene.residents[i].route, clock, scene.residents[i].speed, scene.residents[i].phase);
+            return toStage(p.x, p.y - HEAD);
+          };
+          feed({
+            amount,
+            speakers: picks.map((i, k) => (k === TASHA_INDEX ? toStage(scene.home.x, scene.home.y - HEAD * 1.15) : i === null ? null : head(i))),
+          });
+        } else if (picks) {
+          picks = null;
+          feed?.(null);
         }
         const opacity = (amount * (s.mode === 'layers' ? 0.9 : 1)).toFixed(3);
         if (canvas.style.opacity !== opacity) canvas.style.opacity = opacity;

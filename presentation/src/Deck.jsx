@@ -3,6 +3,7 @@ import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react
 import PixelWorld, { STAGE } from './viz/PixelWorld.jsx';
 import SatelliteLayer from './viz/SatelliteLayer.jsx';
 import StreetWorld, { homeOf, STREET } from './viz/StreetWorld.jsx';
+import ChatOverlay from './viz/ChatOverlay.jsx';
 import { Bubble, TashaCard } from './actors.jsx';
 import { CHARTS, STATS, buildSlides } from './story.jsx';
 import { CityBars, GapDumbbell, PeopleRow, RentLine } from './viz/charts.jsx';
@@ -117,6 +118,7 @@ export default function Deck() {
   if (slide.cardAt) lastCardAt.current = slide.cardAt;
 
   const satellite = useRef(null);
+  const chatFeed = useRef(null);
 
   const go = useCallback((next) => {
     setIndex((current) => Math.max(0, Math.min(SLIDE_COUNT - 1, next(current))));
@@ -162,12 +164,13 @@ export default function Deck() {
             <SatelliteLayer view={slide.sat} liveRef={satellite} />
           </div>
           <div className="layer street-layer">
-            <StreetWorld places={places} shot={lastStreet.current} visible={Boolean(slide.street)} satellite={satellite} />
+            <StreetWorld places={places} shot={lastStreet.current} visible={Boolean(slide.street)} satellite={satellite} chat={chatFeed} />
           </div>
           <motion.div className="layer compare-layer" initial={false} animate={{ opacity: compareOn ? 1 : 0 }} transition={{ duration: 0.9, ease: EASE }}>
             <PixelWorld shot={lastCompare.current} stats={STATS} active={compareOn} focus={focus} />
           </motion.div>
           <Scrims variant={slide.panel} />
+          <ChatOverlay mode={slide.street?.chat ?? null} feed={chatFeed} />
           <LayoutGroup>
             <Panel slide={slide} replay={replay} onFocus={setFocus} />
           </LayoutGroup>
