@@ -63,31 +63,44 @@ function fieldFrame(points){
  const angle=best?.angle||0,c=Math.cos(angle),s=Math.sin(angle),p=points.map(([x,y])=>[x*c+y*s,-x*s+y*c]);
  const x=Math.min(...p.map(p=>p[0])),y=Math.min(...p.map(p=>p[1]));return {angle,x,y,w:Math.max(...p.map(p=>p[0]))-x,h:Math.max(...p.map(p=>p[1]))-y};
 }
-export function buildPlaceScene(features,center,{patterns,sports,sprite}){
+// Buildings are neighborhood illustrations: fixed-size, intact sprites rather than footprint skins.
+export function layoutBuildings(features,atlas){
+ const result=[],variants=['houseSmall','houseMedium','townhouse','brownstone','apartmentTeal','apartmentGold'];
+ const roads=features.filter(f=>f.type==='road');
+ const overlaps=(a,b,pad=0)=>a.x<b.x+b.w+pad&&a.x+a.w+pad>b.x&&a.y<b.y+b.h+pad&&a.y+a.h+pad>b.y;
+ function crosses(a,b,r){
+  let lo=0,hi=1;
+  for(let k=0;k<2;k++){const min=k?r.y:r.x,max=min+(k?r.h:r.w),d=b[k]-a[k];
+   if(Math.abs(d)<1e-9){if(a[k]<min||a[k]>max)return false;continue;}
+   const t1=(min-a[k])/d,t2=(max-a[k])/d;lo=Math.max(lo,Math.min(t1,t2));hi=Math.min(hi,Math.max(t1,t2));if(lo>hi)return false;
+  }return true;
+ }
+ for(const f of features.filter(f=>f.type==='building').sort((a,b)=>String(a.id).localeCompare(String(b.id)))){
+  const xs=f.points.map(p=>p[0]),ys=f.points.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+  const n=variants[Math.abs(Number(f.id)||0)%variants.length],scale=.7,w=atlas[n][2]*scale,h=atlas[n][3]*scale;
+  for(const [dx,dy] of [[0,0],[24,0],[-24,0],[0,24],[0,-24]]){
+   const x=cx-w/2+dx,foot=cy+18+dy,y=foot-h,rect={x,y,w,h},base={x:x+4,y:foot-24,w:w-8,h:24};
+   if(x<20||y<20||x+w>WIDTH-20||foot>HEIGHT-20||result.some(b=>overlaps(rect,b,8)))continue;
+   if(roads.some(r=>r.points.slice(1).some((p,i)=>crosses(r.points[i],p,{x:base.x-10,y:base.y-10,w:base.w+20,h:base.h+20}))))continue;
+   if(features.some(f=>['pitch','water','park'].includes(f.type)&&[[base.x,base.y],[base.x+base.w,base.y+base.h],[cx+dx,foot]].some(p=>contains(p,f.points))))continue;
+   result.push({id:f.id,title:f.tags.name||f.tags['addr:street']||'Neighborhood home',city:0,n,scale,x,y,w,h,foot,base,doorX:x+w/2,doorY:foot+10,mapped:true});break;
+  }
+ }
+ return result;
+}
+export function buildPlaceScene(features,center,{patterns,sports,sprite,atlas}){
  const local=sceneFeatures(features,center),ground=document.createElement('canvas');ground.width=WIDTH;ground.height=HEIGHT;
  const ctx=ground.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.fillStyle=patterns.pavement;ctx.fillRect(0,0,WIDTH,HEIGHT);
  const order={park:0,beach:1,water:2,road:3,track:4,pitch:5,building:6};local.sort((a,b)=>order[a.type]-order[b.type]);
- const buildings=[],trees=[],blockedShapes=[];
+ const buildings=layoutBuildings(local,atlas),trees=[],blockedShapes=[];
  for(const f of local){const rings=f.rings||[f.points];
   if(f.type==='road'||f.type==='track'){
    ctx.beginPath();f.points.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.lineJoin='round';ctx.lineCap='round';
    const path=['footway','path','steps','cycleway','pedestrian'].includes(f.tags.highway),width=f.type==='track'?7:path?6:['motorway','trunk','primary'].includes(f.tags.highway)?30:18;
    ctx.strokeStyle='#b8b6a1';ctx.lineWidth=width+6;ctx.stroke();ctx.strokeStyle=f.type==='track'?'#b87866':path?patterns.cobble:patterns.asphalt;ctx.lineWidth=width;ctx.stroke();continue;
   }
-  trace(ctx,rings);ctx.fillStyle=f.type==='water'?'#548fad':f.type==='beach'?'#ddcd9a':f.type==='building'?'#777a83':patterns.grass;ctx.fill('evenodd');
-  if(f.type==='building'){
-   ctx.strokeStyle='#41494b';ctx.lineWidth=3;ctx.stroke();ctx.save();ctx.clip('evenodd');
-   const xs=f.points.map(p=>p[0]),ys=f.points.map(p=>p[1]),x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;
-   ctx.fillStyle=['#aca18e','#909fa1','#baaa91'][Number(f.id)%3||0];ctx.fillRect(x+4,y+4,w-8,h-8);ctx.strokeStyle='#ffffff30';ctx.lineWidth=2;ctx.strokeRect(x+7,y+7,w-14,h-14);ctx.restore();
-   if(w>25&&h>25){
-    let scale=Math.min(w/96,h/115)*.95;
-    for(let attempt=0;attempt<5;attempt++,scale*=.8){
-     const sx=x+(w-96*scale)/2,sy=y+(h-115*scale)/2;
-     if([[sx,sy],[sx+96*scale,sy],[sx,sy+115*scale],[sx+96*scale,sy+115*scale]].every(p=>contains(p,f.points))){sprite(ctx,'houseSmall',sx,sy,scale);break;}
-    }
-   }
-   buildings.push({id:f.id,title:f.tags.name||f.tags['addr:street']||'Mapped building',city:0,x,y,w,h,doorX:x+w/2,doorY:y+h+10,foot:y+h,mapped:true});blockedShapes.push(rings);
-  }
+  if(f.type==='building')continue;
+  trace(ctx,rings);ctx.fillStyle=f.type==='water'?'#548fad':f.type==='beach'?'#ddcd9a':patterns.grass;ctx.fill('evenodd');
   if(f.type==='water')blockedShapes.push(rings);
   if(f.type==='park'){
    for(let y=16;y<HEIGHT;y+=48)for(let x=16;x<WIDTH;x+=48){const px=x+(Math.sin(x+y)*12),py=y+(Math.cos(x-y)*12);if(rings.reduce((v,r)=>v!==contains([px,py],r),false)&&((x+y+Number(f.id))%7<2))trees.push([px,py]);}
@@ -106,6 +119,7 @@ export function buildPlaceScene(features,center,{patterns,sports,sprite}){
  // Trees are illustrative decoration within mapped greenery, never across pitches or roads.
  const obstacles=local.filter(f=>['building','pitch','water','road'].includes(f.type));
  for(const [x,y] of trees){if(obstacles.some(f=>f.type==='road'?f.points.some(p=>Math.hypot(p[0]-x,p[1]-y)<26):contains([x,y],f.points)))continue;sprite(ctx,'tree',x-16,y-35);}
+ for(const b of buildings){const r=b.base;blockedShapes.push([[[r.x,r.y],[r.x+r.w,r.y],[r.x+r.w,r.y+r.h],[r.x,r.y+r.h]]]);}
  const isBlocked=(x,y)=>x<16||y<16||x>WIDTH-16||y>HEIGHT-16||blockedShapes.some(rings=>rings.reduce((v,r)=>v!==contains([x,y],r),false));
  let spawn=[WIDTH/2,HEIGHT/2];if(isBlocked(...spawn)){outer:for(let radius=16;radius<600;radius+=16)for(let angle=0;angle<Math.PI*2;angle+=.2){let p=[WIDTH/2+Math.cos(angle)*radius,HEIGHT/2+Math.sin(angle)*radius];if(!isBlocked(...p)){spawn=p;break outer;}}}
  if(isBlocked(...spawn))throw Error('No walkable ground at this location');

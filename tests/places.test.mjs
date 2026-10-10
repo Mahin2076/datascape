@@ -25,3 +25,12 @@ test('multipolygon fragments join into closed rings',()=>{
  const data={elements:[...fixture.elements.filter(e=>e.type==='node'),{type:'way',id:10,nodes:[1,2]},{type:'way',id:11,nodes:[1,3,2]},{type:'relation',id:20,tags:{type:'multipolygon',natural:'water'},members:[{type:'way',ref:10,role:'outer'},{type:'way',ref:11,role:'outer'}]}]};
  const [f]=normalizeOSM(data);assert.equal(f.type,'water');assert.equal(f.rings.length,1);assert.deepEqual(f.points[0],f.points.at(-1));assert.equal(f.points.length,4);
 });
+
+test('illustrative houses keep full asset proportions and avoid overlapping each other',async()=>{
+ const {layoutBuildings}=await import('../dist/map/places.js');
+ const atlas=JSON.parse(await (await import('node:fs/promises')).readFile(new URL('../dist/assets/world-atlas.json',import.meta.url),'utf8'));
+ const features=Array.from({length:12},(_,i)=>({id:i+1,type:'building',tags:{},points:[[300+i*12,400],[310+i*12,400],[310+i*12,460],[300+i*12,460]]}));
+ const houses=layoutBuildings(features,atlas);assert.ok(houses.length>0&&houses.length<features.length);
+ for(const a of houses){assert.equal(a.w,atlas[a.n][2]*.7);assert.equal(a.h,atlas[a.n][3]*.7);for(const b of houses){if(a===b)continue;assert.ok(a.x+a.w<=b.x||b.x+b.w<=a.x||a.y+a.h<=b.y||b.y+b.h<=a.y);}}
+ const water={id:100,type:'water',tags:{},points:[[0,0],[1536,0],[1536,1152],[0,1152]]};assert.equal(layoutBuildings([...features,water],atlas).length,0);
+});

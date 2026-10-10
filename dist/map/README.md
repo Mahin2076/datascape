@@ -81,3 +81,7 @@ Reproducible local examples (reload after changing the hash):
 - `/#map=17/37.7641/-122.4429`: Roosevelt Way / residential streets.
 
 Run `node --test tests/*.test.mjs`. Tests cover coordinate round trips, field classification, missing geometry, collision, fetch caching/failure, asynchronous preparation/cancellation, and the original zoom/selection contracts. Browser verification covers both example locations, field sprite orientation, mapped building inspection, and scroll return.
+
+### Illustrative house placement
+
+Building geometry now supplies neighborhood placement hints only. Complete LimeZu house, townhouse and apartment sprites use a consistent 0.7 scale instead of clipped footprint skins. Dense footprints are thinned and placements shifted locally to leave breathing room. Buildings are drawn in depth order with residents; collision and inspection follow the displayed house base. Real roads, parks and sports-field geometry remain mapped.
