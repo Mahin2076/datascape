@@ -1,14 +1,14 @@
 import {getHousing} from '../data/index.js';
-import {DEMO_STEPS,nearbyResidents,visibleHouses,houseScenario,dollars,speechWaves} from './model.js';
+import {nearbyResidents,dollars,speechWaves} from './model.js';
 
 const el=(tag,className,text)=>{const node=document.createElement(tag);node.className=className;if(text!==undefined)node.textContent=text;return node;};
 const button=(text,className,click)=>{const node=el('button',className,text);node.type='button';node.addEventListener('click',click);return node;};
-const pause=(ms,signal)=>new Promise((resolve,reject)=>{if(signal.aborted)return reject(new DOMException('Stopped','AbortError'));const timer=setTimeout(done,ms);function done(){signal.removeEventListener('abort',abort);resolve();}function abort(){clearTimeout(timer);reject(new DOMException('Stopped','AbortError'));}signal.addEventListener('abort',abort,{once:true});});
+
 
 export function mountNeighborhoodChat({root,map,closeProfiles}){
   const style=el('link','');style.rel='stylesheet';style.href=new URL('./chat.css',import.meta.url).href;document.head.append(style);
   const shell=el('section','nc-shell');shell.setAttribute('aria-label','Neighborhood chat');shell.hidden=false;
-  const heading=el('div','nc-heading');const title=el('h2','','Ask this neighborhood');
+  const heading=el('div','nc-heading');const title=el('h2','','Ask the neighborhood');
   heading.append(title);
   const sub=el('p','nc-context','Zoom into a street to meet your neighbors.');
   const form=el('form','nc-form');const input=el('input','nc-input');input.placeholder='What’s it like to afford a home here?';input.maxLength=600;input.required=true;input.setAttribute('aria-label','Ask this neighborhood about housing');
@@ -20,16 +20,12 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
   shell.append(heading,sub,form,tools,status);
   const overlay=el('div','nc-overlay');overlay.setAttribute('aria-hidden','true');
   const transcript=el('aside','nc-transcript');transcript.hidden=true;transcript.setAttribute('aria-label','All neighborhood replies');
-  const transcriptHead=el('header','nc-transcript-head');transcriptHead.append(el('b','','Voices from this block'),button('×','',()=>transcript.hidden=true));
+  const transcriptHead=el('header','nc-transcript-head');transcriptHead.append(el('b','','Voices from this block'),button('Close','',()=>transcript.hidden=true));
   const transcriptBody=el('div','nc-transcript-body');transcript.append(transcriptHead,transcriptBody);
-  const demo=el('section','nc-demo');demo.hidden=true;const stepLabel=el('small','nc-step');const demoTitle=el('h2','');const caption=el('p','');const progress=el('div','nc-progress');
-  for(let i=0;i<4;i++)progress.append(el('i',''));
-  const demoActions=el('div','nc-demo-actions');const demoNext=button('Next chapter →','',()=>void nextDemo());const demoStop=button('End story','',stopDemo);demoActions.append(demoNext,demoStop);demo.append(stepLabel,demoTitle,caption,progress,demoActions);
-  const demoLauncher=button('Play demo','nc-demo-launcher',()=>void startDemo());
-  root.append(overlay,shell,transcript,demo);heading.append(demoLauncher);root.classList.add('chat-open');
-  let scene=map.getScene(),selection=map.selection.get(),housing=null,lens=false,replies=[],bubbleNodes=new Map(),houseNodes=new Map();
+  root.append(overlay,shell,transcript);root.classList.add('chat-open');
+  let scene=map.getScene(),selection=map.selection.get(),housing=null,replies=[],bubbleNodes=new Map();
   let request=null,version=0,history=[],wave=0,waveAt=0,housingVersion=0,region=scene.regionKey;
-  let demoController=null,demoIndex=-1,demoBusy=false,originalAmbient=null;
+  let originalAmbient=null;
 
   function open(){closeProfiles();shell.hidden=false;root.classList.add('chat-open');input.focus();}
   function clearReplies(){
@@ -40,7 +36,6 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
   async function refreshHousing(){const id=++housingVersion;try{const next=await getHousing(selection.cityId,selection.year);if(id===housingVersion)housing=next;}catch{if(id===housingVersion)housing=null;}}
   void refreshHousing();
   map.selection.subscribe(next=>{
-    if(next.cityId!==selection.cityId&&demoIndex>=0)stopDemo();
     selection=next;clearReplies();history=[];transcriptBody.replaceChildren();transcript.hidden=true;status.textContent='Context changed. Ask the neighborhood again.';void refreshHousing();
   });
   async function ask(question){
@@ -83,7 +78,7 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
       return false;
     }finally{if(token===version){request=null;submit.disabled=false;submit.textContent='Ask neighbors';shell.removeAttribute('aria-busy');}}
   }
-  form.addEventListener('submit',event=>{event.preventDefault();stopDemo();void ask(input.value);});
+  form.addEventListener('submit',event=>{event.preventDefault();void ask(input.value);});
 
   function updateBubbles(now){
     if(replies.length&&now-waveAt>6500){wave++;waveAt=now;}
@@ -105,51 +100,14 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
       node.dataset.residentId=reply.id;
     }
   }
-  function updateHouses(){
-    const facts=houseScenario(housing,selection.scenario);
-    const targets=lens&&facts&&scene.mode==='street'?visibleHouses(scene):[];
-    const ids=new Set(targets.map(h=>h.id));
-    for(const [id,node] of houseNodes)if(!ids.has(id)){node.remove();houseNodes.delete(id);}
-    for(const house of targets){
-      let node=houseNodes.get(house.id);if(!node){node=el('div','nc-house');node.append(el('small','','CITY MEDIAN / MONTH'),el('strong',''),el('span',''));overlay.append(node);houseNodes.set(house.id,node);}
-      node.style.left=`${house.x}px`;node.style.top=`${house.y-12}px`;node.classList.toggle('is-shock',facts.delta>0);
-      node.querySelector('strong').textContent=dollars(facts.rent);
-      node.querySelector('span').textContent=facts.delta?`${facts.delta>0?'+':'−'}${dollars(Math.abs(facts.delta))} scenario · not an asking rent`:'Census context · not an asking rent';
-      const box=node.getBoundingClientRect();
-      node.style.opacity=[...bubbleNodes.values()].some(b=>{if(b.hidden||!b.classList.contains('is-speaking'))return false;const r=b.getBoundingClientRect();return box.left<r.right&&box.right>r.left&&box.top<r.bottom&&box.bottom>r.top;})?'.18':'1';
-    }
-  }
   const unsubscribe=map.onSceneFrame(next=>{
     scene=next;
-    if(scene.mode!=='street'&&demoIndex>=0)stopDemo();
     if(region!==scene.regionKey||scene.mode!=='street'&&replies.length){region=scene.regionKey;clearReplies();history=[];}
     const count=nearbyResidents(scene).length;
     sub.textContent=scene.mode==='street'?`${housing?.geography||selection.cityId} · ${selection.year} · ${count} nearby voices`:'Ask a housing question. We’ll open this area and hear from nearby residents.';
-    updateBubbles(performance.now());updateHouses();
+    updateBubbles(performance.now());
   });
 
-  function stopDemo(){if(demoController)clearReplies();demoController?.abort();demoController=null;demoIndex=-1;demoBusy=false;demo.hidden=true;demoLauncher.disabled=false;root.classList.remove('demo-playing');}
-  async function startDemo(){
-    stopDemo();clearReplies();closeProfiles();const controller=new AbortController();demoController=controller;
-    demoLauncher.disabled=true;demo.hidden=false;root.classList.add('demo-playing');stepLabel.textContent='A DATASCAPE SHORT STORY';demoTitle.textContent='Finding our block…';caption.textContent='Loading the neighborhood. Every house sets the scene. Every household has a voice.';
-    try{await map.enterDemoNeighborhood(controller.signal);if(controller.signal.aborted)return;await pause(160,controller.signal);lens=true;open();demoIndex=-1;await nextDemo();}
-    catch(error){if(!controller.signal.aborted){caption.textContent='This neighborhood could not load. Check the connection and try again.';demoLauncher.disabled=false;}}
-  }
-  async function nextDemo(){
-    if(demoBusy||!demoController)return;
-    const controller=demoController;demoIndex++;
-    if(demoIndex>=DEMO_STEPS.length){stopDemo();return;}
-    const step=DEMO_STEPS[demoIndex];stepLabel.textContent=`${String(demoIndex+1).padStart(2,'0')} / 04 · CAN YOU AFFORD TO STAY?`;demoTitle.textContent=step.title;caption.textContent=step.caption;
-    [...progress.children].forEach((n,i)=>n.classList.toggle('active',i<=demoIndex));
-    demoNext.textContent=demoIndex===3?'Explore on your own →':'Next chapter →';
-    if(step.scenario)map.selection.set({scenario:step.scenario});
-    if(step.question){
-      demoBusy=true;demoNext.disabled=true;const success=await ask(step.question);
-      if(controller.signal.aborted||controller!==demoController)return;
-      demoBusy=false;demoNext.disabled=false;
-      if(!success)caption.textContent='Live replies are unavailable. The house scenario and calculated budgets still work; retry from the question box.';
-    }
-  }
   root.dataset.neighborhoodChat='ready';
-  return {ask,open,startDemo,destroy(){stopDemo();clearReplies();unsubscribe();[shell,overlay,transcript,demo,demoLauncher,style].forEach(n=>n.remove());}};
+  return {ask,open,destroy(){clearReplies();unsubscribe();[shell,overlay,transcript,style].forEach(n=>n.remove());}};
 }

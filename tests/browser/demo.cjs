@@ -1,10 +1,16 @@
-// Start the static server before running. Requires Playwright + Chromium.
+// Start the app server before running. Requires Playwright + Chromium.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdir}=require('node:fs/promises');
-const base=process.env.DEMO_URL||'http://127.0.0.1:8123';
+const base=process.env.DEMO_URL||'http://127.0.0.1:8124';
 const waitReady=page=>page.waitForSelector('#game[data-stories-ready="true"]');
 const waitReaction=page=>page.waitForSelector('.rs-reaction[aria-busy="false"]');
+async function explore(page,selector,value){
+  const menu=page.locator('.explore-menu');
+  if(!await menu.evaluate(node=>node.open))await menu.locator('summary').click();
+  if(value===undefined)await page.locator(selector).click();else await page.locator(selector).selectOption(value);
+  if(await menu.evaluate(node=>node.open))await menu.locator('summary').click();
+}
 async function checkScenario(page){
   await page.locator('[data-preset="rent10"]').click();
   await waitReaction(page);
@@ -27,15 +33,15 @@ async function checkScenario(page){
       const page=await context.newPage();const errors=[];
       page.on('pageerror',error=>errors.push(error.message));
       await page.goto(base+'/#map=16/37.7641/-122.4429');await waitReady(page);
-      await page.locator('#housingYear').selectOption('2024');
+      await explore(page,'#housingYear','2024');
       // Scroll zoom enters the map at the selected coordinate using live OSM data.
-      await page.locator('#zoomIn').click();
+      await explore(page,'#zoomIn');
       await page.waitForSelector('#game[data-view="street"]',{timeout:45000});
       await page.waitForSelector('#mapDive[hidden]',{state:'attached'});
-      if(width===1440) await page.locator('#ambient').click();
+      if(width===1440) await explore(page,'#ambient');
       const target=await page.evaluate(async()=>{
         const {mapIntegration}=await import('/app.js');
-        return mapIntegration.getResidentTargets().find(p=>p.x>30&&p.x<innerWidth-60&&p.y>160&&p.y<innerHeight-160);
+        return mapIntegration.getResidentTargets().find(p=>p.x>30&&p.x<innerWidth-60&&p.y>260&&p.y<innerHeight-160);
       });
       assert.ok(target,'A clickable resident should be visible');
       await page.mouse.click(target.x,target.y);await waitReaction(page);
@@ -45,7 +51,7 @@ async function checkScenario(page){
       const links=await page.locator('.rs-provenance a').evaluateAll(a=>a.map(a=>a.href));
       assert.ok(links.every(url=>new URL(url).hostname.endsWith('.census.gov')));
       if(!links.length) assert.match(await page.locator('.rs-provenance').innerText(),/fixed amount chosen/);
-      await page.locator('#housingYear').selectOption('2022');await waitReaction(page);
+      await explore(page,'#housingYear','2022');await waitReaction(page);
       assert.match(await page.locator('.rs-scenario-label').innerText(),/2022 baseline/);
       assert.equal(await page.locator('[data-preset="rent10"]').getAttribute('aria-pressed'),'true');
       // Keyboard controls in a profile must not move the player or the map.
@@ -58,22 +64,22 @@ async function checkScenario(page){
       const start=await page.locator('#world').getAttribute('data-player-y');
       await page.keyboard.down('ArrowDown');await page.waitForTimeout(200);await page.keyboard.up('ArrowDown');
       assert.notEqual(await page.locator('#world').getAttribute('data-player-y'),start);
-      await page.locator('#cityView').click();
+      await explore(page,'#cityView');
       await page.waitForSelector('#game[data-view="city"]');
       const selection=await page.evaluate(async()=>(await import('/app.js')).mapIntegration.selection.get());
       assert.equal(selection.year,2022);assert.equal(selection.scenario.rentChangePct,10);
       // Block external services after warm-up. Core budgets and sources remain local.
       await page.route('https://**/*',route=>route.abort());
-      await page.locator('#compareView').click();
+      await explore(page,'#compareView');
       await page.waitForSelector('#game[data-view="compare"]');
       for(const [index,cityId] of ['sf','nyc','austin','chicago','seattle'].entries()){
         await page.locator('#citySelect').selectOption(String(index));
-        await page.locator('#residentPicker').selectOption(`${cityId}-resident-1`);
+        await explore(page,'#residentPicker',`${cityId}-resident-1`);
         await waitReaction(page);await checkScenario(page);
         await page.locator('.rs-close').click();
       }
-      await page.locator('#housingYear').selectOption('2024');
-      await page.locator('#askToggle').click();
+      await explore(page,'#housingYear','2024');
+      await explore(page,'#askToggle');
       await page.locator('#question').fill('Where did rent rise fastest?');
       await page.locator('#askform').evaluate(form=>form.requestSubmit());
       assert.match(await page.locator('#answer').innerText(),/rent rise fastest/);
