@@ -1,0 +1,21 @@
+{
+  "name": "datascape-presentation",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Can You Afford to Stay? — hackathon presentation built with the DataScape UI.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "motion": "^14.1.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.4"
+  }
+}

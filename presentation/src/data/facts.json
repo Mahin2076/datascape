@@ -1,0 +1,141 @@
+{
+  "about": "ACS 1-year estimates (U.S. Census Bureau table-based summary files), place geography, 2021 and 2024 releases. burden30 = renter households paying 30%+ of income on gross rent / renter households with computed ratio (B25070). MOEs are 90% and use Census approximation formulas.",
+  "year": 2024,
+  "cities": {
+    "sf": {
+      "name": "San Francisco",
+      "burden30": 0.3909,
+      "burden30Moe": 0.0225,
+      "burden50": 0.1923,
+      "burden50Moe": 0.017,
+      "rent": 2448,
+      "rentMoe": 59,
+      "renterIncome": 111044,
+      "renterIncomeMoe": 6696,
+      "rent2021": 2167,
+      "renterIncome2021": 98241,
+      "sources": {
+        "B25070": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25070.dat",
+        "B25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25064.dat",
+        "B25119": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25119.dat"
+      },
+      "growth": {
+        "rent": 0.1297,
+        "rentMoe": 0.0407,
+        "renterIncome": 0.1303,
+        "renterIncomeMoe": 0.117,
+        "gap": -0.0007,
+        "gapMoe": 0.1238,
+        "verdict": "too_close_to_call"
+      }
+    },
+    "nyc": {
+      "name": "New York",
+      "burden30": 0.5157,
+      "burden30Moe": 0.0091,
+      "burden50": 0.2882,
+      "burden50Moe": 0.0066,
+      "rent": 1811,
+      "rentMoe": 12,
+      "renterIncome": 64866,
+      "renterIncomeMoe": 1685,
+      "rent2021": 1602,
+      "renterIncome2021": 53369,
+      "sources": {
+        "B25070": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25070.dat",
+        "B25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25064.dat",
+        "B25119": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25119.dat"
+      },
+      "growth": {
+        "rent": 0.1305,
+        "rentMoe": 0.0113,
+        "renterIncome": 0.2154,
+        "renterIncomeMoe": 0.0404,
+        "gap": -0.085,
+        "gapMoe": 0.042,
+        "verdict": "income_outpaced"
+      }
+    },
+    "austin": {
+      "name": "Austin",
+      "burden30": 0.4829,
+      "burden30Moe": 0.0303,
+      "burden50": 0.2217,
+      "burden50Moe": 0.022,
+      "rent": 1770,
+      "rentMoe": 25,
+      "renterIncome": 69916,
+      "renterIncomeMoe": 2509,
+      "rent2021": 1426,
+      "renterIncome2021": 56914,
+      "sources": {
+        "B25070": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25070.dat",
+        "B25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25064.dat",
+        "B25119": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25119.dat"
+      },
+      "growth": {
+        "rent": 0.2412,
+        "rentMoe": 0.0279,
+        "renterIncome": 0.2284,
+        "renterIncomeMoe": 0.0698,
+        "gap": 0.0128,
+        "gapMoe": 0.0752,
+        "verdict": "too_close_to_call"
+      }
+    },
+    "chicago": {
+      "name": "Chicago",
+      "burden30": 0.4924,
+      "burden30Moe": 0.0171,
+      "burden50": 0.2495,
+      "burden50Moe": 0.0115,
+      "rent": 1486,
+      "rentMoe": 24,
+      "renterIncome": 57723,
+      "renterIncomeMoe": 3310,
+      "rent2021": 1240,
+      "renterIncome2021": 46497,
+      "sources": {
+        "B25070": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25070.dat",
+        "B25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25064.dat",
+        "B25119": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25119.dat"
+      },
+      "growth": {
+        "rent": 0.1984,
+        "rentMoe": 0.0248,
+        "renterIncome": 0.2414,
+        "renterIncomeMoe": 0.0821,
+        "gap": -0.043,
+        "gapMoe": 0.0858,
+        "verdict": "too_close_to_call"
+      }
+    },
+    "seattle": {
+      "name": "Seattle",
+      "burden30": 0.4401,
+      "burden30Moe": 0.0241,
+      "burden50": 0.1943,
+      "burden50Moe": 0.017,
+      "rent": 2007,
+      "rentMoe": 55,
+      "renterIncome": 87642,
+      "renterIncomeMoe": 5223,
+      "rent2021": 1787,
+      "renterIncome2021": 71394,
+      "sources": {
+        "B25070": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25070.dat",
+        "B25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25064.dat",
+        "B25119": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/1YRData/acsdt1y2024-b25119.dat"
+      },
+      "growth": {
+        "rent": 0.1231,
+        "rentMoe": 0.0405,
+        "renterIncome": 0.2276,
+        "renterIncomeMoe": 0.115,
+        "gap": -0.1045,
+        "gapMoe": 0.1219,
+        "verdict": "too_close_to_call"
+      }
+    }
+  }
+}
