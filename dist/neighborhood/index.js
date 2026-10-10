@@ -1,12 +1,11 @@
 import {NEIGHBORHOOD} from './data.js';
 export function mountNeighborhood({root,map}){
  const label=document.createElement('div');label.className='rh-location';label.innerHTML='<b>Rincon Hill</b><span>318 Spear St · waterfront district</span>';root.append(label);
- const entry=document.createElement('button');entry.className='rh-entry';entry.innerHTML='<small>EXPLORE ONE NEIGHBORHOOD</small><b>Rincon Hill</b><span>Start near 318 Spear Street →</span>';entry.onclick=()=>map.enterNeighborhood();root.append(entry);
  const card=document.createElement('article');card.className='rh-hologram';card.hidden=true;card.setAttribute('aria-label','Nearby property');root.append(card);
  const hint=document.createElement('p');hint.className='rh-hint';hint.textContent='Walk with arrow keys or tap a street · Approach a home to reveal it';root.append(hint);
  let active=null;
  map.onSceneFrame(scene=>{
-  const street=scene.mode==='street';entry.hidden=street;hint.hidden=!street;
+  const street=scene.mode==='street';label.hidden=!street;hint.hidden=!street;
   const candidates=scene.buildings.filter(b=>b.distance<230&&b.x>20&&b.x<scene.width-20&&b.y>60&&b.y<scene.height-165).sort((a,b)=>a.distance-b.distance);
   let nearest=candidates[0];const previous=candidates.find(b=>b.id===active);if(previous&&nearest&&previous.distance<nearest.distance+30)nearest=previous;
   card.hidden=!street||!nearest;root.dataset.activeProperty=nearest?.id||'';

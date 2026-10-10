@@ -20,15 +20,15 @@ function setup(animated=false){
  let errors=0,entered=0,returned=0,zoom=12;const events={};const queue=new Map();let next=0;const overlay={hidden:true};
  const element={hidden:true,dataset:{}};
  globalThis.ResizeObserver=class{observe(){}};
- const map={getCenter(){return [37.76,-122.435];},flyTo(center,z){zoom=z;events.zoomend?.();},stop(){},on(event,fn){events[event]=fn;return this;},setView(center,z){zoom=z;events.zoomend?.();return this;},invalidateSize(){},setZoom(z){zoom=z;events.zoomend?.();},getZoom(){return zoom;},panBy(){}};
+ const map={getCenter(){return {lat:37.7891,lng:-122.3908};},flyTo(center,z){zoom=z;events.zoomend?.();},stop(){},on(event,fn){events[event]=fn;return this;},setView(center,z){zoom=z;events.zoomend?.();return this;},invalidateSize(){},setZoom(z){zoom=z;events.zoomend?.();},getZoom(){return zoom;},panBy(){}};
  const layer={on(){return this;},addTo(){return this;}};
  const leaflet={map:()=>map,tileLayer:()=>layer};
  const controller=createCityOverview({element,leaflet,overlay,reducedMotion:!animated,schedule:(fn,ms)=>{queue.set(++next,{fn,ms});return next;},unschedule:id=>queue.delete(id),onReturn:()=>returned++,onEnter:()=>entered++,onError:()=>errors++});
- return {controller,element,overlay,advance(ms){for(const [id,job] of [...queue])if(job.ms<=ms){queue.delete(id);job.fn();}},returned:()=>returned,click:()=>events.click({latlng:{lat:37.77,lng:-122.42}}),entered:()=>entered,zoom:()=>zoom};
+ return {controller,element,overlay,advance(ms){for(const [id,job] of [...queue])if(job.ms<=ms){queue.delete(id);job.fn();}},returned:()=>returned,click:()=>events.click({latlng:{lat:37.7891,lng:-122.3908}}),entered:()=>entered,zoom:()=>zoom};
 }
 test('live map opens, zooms without entering, clicks enter once, and reopens',()=>{
  const s=setup();assert.equal(s.controller.open(),true);assert.equal(s.element.hidden,false);
- s.controller.changeZoom(1);assert.equal(s.zoom(),16);assert.equal(s.entered(),0);
+ s.controller.changeZoom(1);assert.equal(s.zoom(),13);assert.equal(s.entered(),0);
  s.click();assert.equal(s.entered(),1);assert.equal(s.element.hidden,true);assert.equal(s.controller.click(),false);
  s.controller.open();assert.equal(s.element.hidden,false);s.controller.enter();assert.equal(s.entered(),2);
 });
@@ -56,7 +56,7 @@ test('cinematic transition enters only at handoff, blocks repeat clicks, and can
 
 for(const animated of [false,true])test(`scroll threshold round trip preserves hysteresis (animated=${animated})`,()=>{
  const s=setup(animated);s.controller.open();
- for(let i=0;i<1;i++)s.controller.changeZoom(1);
+ for(let i=0;i<4;i++)s.controller.changeZoom(1);
  assert.equal(s.entered(),0);
  s.controller.changeZoom(1);s.advance(0);assert.equal(s.entered(),1);
  s.advance(800);assert.equal(s.controller.active,false);

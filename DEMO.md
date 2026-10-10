@@ -2,7 +2,7 @@
 
 Run `npm ci` and `npm start`, then open http://127.0.0.1:8124.
 
-1. Select the highlighted **Rincon Hill** district or **Start near 318 Spear Street**.
+1. Browse the full San Francisco map with 117 DataSF neighborhood boundaries, then click **Rincon Hill** to enter. Other districts are previews.
 2. Walk with arrow keys/WASD or tap pavement. A hologram automatically reveals the closest visible property: simulated asking price, bed/bath count, floor area, example rent and HOA. Move to another building to compare.
 3. In the bottom bubble ask **Which nearby home costs less?** or **What is The Infinity at 318 Spear Street?**
 4. Resident speech bubbles answer. **Read all replies** contains the complete conversation and the separately labeled Cala research with source links.
@@ -11,7 +11,7 @@ Run `npm ci` and `npm start`, then open http://127.0.0.1:8124.
 ## Data boundaries
 
 - OpenStreetMap geometry is saved in `dist/assets/rincon-map.json` for reliable street entry. Artwork, unit assignments, prices, rent, HOA, sizes and amenities in property cards are illustrative demo data. They are not verified listings or valuations, and Census is not their source.
-- The Rincon Hill highlight is a demo selection area, not an official administrative boundary. It centers approximately on the Spear Street/Infinity area.
+- Neighborhood overlays use the DataSF SF Find neighborhood dataset (117 areas). These are neighborhood reference boundaries, not parcel or listing boundaries. The working scene centers approximately on the Spear Street/Infinity area.
 - Census figures remain citywide ACS context, with original source links and estimate years.
 - Cala retrieves separate, sourced neighborhood research from its documented knowledge-search API. A timeout, missing key or missing citations produces an explicit unavailable state. Research does not certify demo listing prices.
 - The neighborhood is rendered with stylized house artwork; it is not a dimensionally accurate model of the Infinity towers.
