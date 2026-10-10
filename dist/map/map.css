@@ -23,3 +23,16 @@
 
 #game[data-view=street] .zoom #ambient{display:block;font-size:11px}
 #answer,#inspection{top:calc(var(--map-top,185px) + 43px);max-height:calc(100dvh - var(--map-top,185px) - 125px)}
+/* Quiet map-first interface: click the city, then explore on foot. */
+#story,#streetHint,#touchpad,#game[data-view=street] #touchpad,#cityCard,#mapMode,.map-legend{display:none!important}
+#mapNavigation{left:12px;right:auto;gap:5px}
+#mapNavigation button{padding:7px 9px;font-size:9px;background:#edede3e8;border-color:#8d9b89}
+#game[data-view=city] #cityView{display:none}
+#mapCaption{position:absolute;bottom:88px;left:50%;transform:translateX(-50%);font-size:10px;color:#e6eadd;background:#203a31bb;padding:7px 11px;pointer-events:none;white-space:nowrap}
+#mapAttribution{bottom:67px;left:12px;right:auto;font-size:7px;background:transparent;text-align:left;max-width:270px}
+#game[data-view=street] #nearby{bottom:81px;left:50%;right:auto;transform:translateX(-50%)}
+#game[data-view=street] .zoom,.zoom{bottom:80px;right:12px}
+#game[data-view=street] #inspect{width:auto;min-width:0;padding:8px 11px}
+#inspect kbd,#inspect small,#inspect .arrow{display:none}
+#game[data-view=street] #inspect b{font-size:10px}
+@media(max-width:650px){#game[data-view=street] #nearby{left:12px;transform:none}#game[data-view=street] #inspect{max-width:230px}}

@@ -24,13 +24,26 @@ function setup(reducedMotion=false){
  return {map,load:()=>instance.onload(),fail:()=>instance.onerror(),entered:()=>entered,failed:()=>failed};
 }
 function settle(map){for(let i=0;i<140;i++)map.draw(ctx,1200,800,180,.016,i*16);}
-test('zoom threshold enters once, return resets to overview, and zoom-out stays on the city',()=>{
- const s=setup();s.load();s.map.open();
- s.map.changeZoom(1);s.map.changeZoom(1);s.map.changeZoom(1);settle(s.map);assert.equal(s.entered(),0);
- s.map.changeZoom(1);settle(s.map);assert.equal(s.entered(),1);assert.equal(s.map.active,false);
- s.map.open();settle(s.map);s.map.changeZoom(-1);settle(s.map);assert.equal(s.entered(),1);assert.equal(s.map.active,true);
+test('zoom stays on the overview; any map click enters once and reopening works',()=>{
+ const s=setup();s.map.open();assert.equal(s.map.click(500,300),false);
+ s.load();for(let i=0;i<8;i++)s.map.changeZoom(1);settle(s.map);
+ assert.equal(s.entered(),0);assert.equal(s.map.active,true);
+ assert.equal(s.map.click(500,300),true);assert.equal(s.entered(),1);
+ assert.equal(s.map.click(500,300),false);assert.equal(s.entered(),1);
+ s.map.open();settle(s.map);s.map.changeZoom(-1);settle(s.map);
+ assert.equal(s.map.active,true);s.map.enter();assert.equal(s.entered(),2);
 });
 test('reduced motion entry and image failure have deterministic fallbacks',()=>{
  const s=setup(true);s.load();s.map.open();s.map.enter();s.map.draw(ctx,390,844,220,.016,0);assert.equal(s.entered(),1);
  const broken=setup();broken.map.open();broken.fail();assert.equal(broken.map.active,false);assert.equal(broken.failed(),1);assert.equal(broken.map.open(),false);
+});
+
+
+test('street camera cannot expose empty space at world edges on mobile or desktop',async()=>{
+ const {streetCamera}=await import('../dist/map/geometry.js');
+ for(const [width,height] of [[390,700],[1440,800],[2400,1600]])for(const [x,y] of [[40,50],[1490,1090],[768,576]]){
+  const c=streetCamera({width,height,worldWidth:1536,worldHeight:1152,x,y,zoom:.85});
+  assert.ok(c.x-width/(2*c.z)>=-1e-9);assert.ok(c.x+width/(2*c.z)<=1536+1e-9);
+  assert.ok(c.y-height/(2*c.z)>=-1e-9);assert.ok(c.y+height/(2*c.z)<=1152+1e-9);
+ }
 });

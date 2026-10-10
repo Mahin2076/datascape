@@ -26,7 +26,7 @@ Open http://localhost:8123.
 
 ## City overview preview (`feature/map-zoom`)
 
-San Francisco opens on the Simtra city artwork. Drag to pan; scroll, pinch, or use +/− to zoom into an illustrative walkable street. Use the City overview button, M, Escape, or zoom out to return. Compare cities keeps the original five-city story available. Other cities currently use the schematic street scenes.
+San Francisco opens on the Simtra city artwork. Click the map to open the expanded illustrative street world. Drag to pan or use +/− to zoom the overview. Click pavement to walk. Use the City overview button, M, Escape, or zoom out to return. Compare cities keeps the original five-city story available. Other cities currently use the schematic street scenes.
 
 Resident clicks now emit stable selection IDs for the resident-profile branch; profiles and AI responses are not implemented here. See [map integration handoff](dist/map/README.md) for selection state, events, controls, asset provenance, and tests.
 
