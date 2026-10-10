@@ -1,0 +1,25 @@
+/* Map-owned UI; resident and data modules can ship their own styles. */
+#mapNavigation{position:absolute;top:var(--map-top,185px);left:17px;right:17px;display:flex;gap:8px;align-items:center;pointer-events:none;font:10px ui-monospace,monospace;z-index:2}
+#mapNavigation button{pointer-events:auto;border:1px solid #899b87;background:#ecede0;color:#294337;padding:9px 12px;border-radius:2px;font:inherit}
+#mapNavigation button[aria-pressed=true]{background:#294337;color:#fff3ce}
+#mapMode{margin-left:auto;background:#203a31e8;color:#e7edda;padding:8px 10px;font-size:9px}
+#cityCard{position:absolute;left:17px;bottom:83px;width:272px;background:#203a31f2;border:1px solid #859b80;color:#f4efdb;padding:17px;z-index:1}
+#cityCard small{font:9px ui-monospace,monospace;letter-spacing:1px;color:#b5c8b3}#cityCard h2{font:600 23px ui-monospace,monospace;margin:9px 0 13px;letter-spacing:-1px}
+#cityCard dl{display:grid;grid-template-columns:1fr auto;gap:8px;margin:0;font-size:11px}#cityCard dt{color:#bfd0bc}#cityCard dd{margin:0}#cityCard p{font-size:9px;line-height:1.6;color:#bfd0bc}
+#cityCard button{width:100%;background:#f1d891;color:#233e31;padding:12px;font:600 11px ui-monospace,monospace;border:0}
+#mapAttribution{position:absolute;right:17px;bottom:116px;font-size:8px;background:#203a31ed;color:#dbe6d4;padding:5px 8px;max-width:260px;text-align:right;line-height:1.5}#mapAttribution a{color:inherit}
+#streetHint{position:absolute;left:17px;bottom:83px;max-width:270px;background:#203a31ed;color:#e4ecd9;padding:9px 12px;font-size:9px;line-height:1.6;pointer-events:none}
+#game[data-view=city] #mapLegend,#game[data-view=street] #mapLegend{display:none!important}
+#game[data-view=city] #nearby{display:none!important}
+#game[data-view=street] #nearby{bottom:131px}
+#game[data-view=street] #touchpad{display:none}
+#game:has(#inspection:not([hidden])) #streetHint,#game:has(#answer:not([hidden])) #cityCard{display:none}
+#game[data-view=city] #world{cursor:grab}#game[data-view=city] #world:active{cursor:grabbing}
+@media(max-width:650px){#mapNavigation{left:10px;right:10px;gap:5px}#mapNavigation button{padding:8px;font-size:9px}#mapMode{font-size:8px;padding:8px 5px}#cityCard{left:10px;bottom:76px;width:210px;padding:10px}#cityCard h2{font-size:17px;margin:5px 0 9px}#cityCard dl{font-size:9px;gap:5px}#cityCard p{font-size:8px;margin:7px 0}#cityCard small{font-size:8px}#cityCard button{padding:9px;font-size:10px}#mapAttribution{right:10px;bottom:117px;max-width:135px;font-size:7px}#streetHint{left:10px;bottom:76px;max-width:225px;font-size:8px}#game[data-view=street] #nearby{left:10px;bottom:180px}#game[data-view=street] #touchpad{display:grid;bottom:120px;z-index:2}#game[data-view=street] .zoom{bottom:120px}#game[data-view=street]:has(#inspection:not([hidden])) #touchpad{display:none}}
+@media(max-height:650px){#cityCard dl,#cityCard p,#cityCard small{display:none}#cityCard{padding:10px;width:220px}#cityCard h2{font-size:16px;margin:0 0 8px}#mapAttribution{bottom:73px}}
+
+#game:not([data-view=street]) #touchpad{display:none!important}
+@media(max-width:650px){#streetHint{max-width:240px;padding:6px 9px;line-height:1.35}#game[data-view=street] #touchpad{bottom:139px}#game[data-view=street] #nearby{bottom:226px;left:auto;right:12px}#game[data-view=street] .zoom{bottom:139px}}
+
+#game[data-view=street] .zoom #ambient{display:block;font-size:11px}
+#answer,#inspection{top:calc(var(--map-top,185px) + 43px);max-height:calc(100dvh - var(--map-top,185px) - 125px)}

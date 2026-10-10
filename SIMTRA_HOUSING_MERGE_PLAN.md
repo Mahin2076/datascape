@@ -54,7 +54,7 @@ The budget denominator must be an explicitly chosen or labeled illustrative hous
 
 ### Tasks and merge order
 
-All items below are pending. Existing DataScape timeline, inspections, and comparisons are starting points, not evidence that the new flow is complete.
+The table defines team responsibilities. On `feature/map-zoom`, H1's San Francisco overview, zoom-in/street/return flow is implemented locally, with movement, inspection, and resident-selection hooks. Shared selection and resident IDs are documented in `dist/map/README.md`; teammates still need to adopt those contracts (H0). H2–H7 are not complete: no resident profiles, budgets, reactions, or Cala adapter have been added by the map branch. Existing DataScape timeline, inspections, and comparisons remain starting points for the team.
 
 | ID | Owner | Task | Depends on | Acceptance evidence |
 |---|---|---|---|---|

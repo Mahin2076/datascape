@@ -24,6 +24,12 @@ python3 -m http.server 8123 --directory dist
 
 Open http://localhost:8123.
 
+## City overview preview (`feature/map-zoom`)
+
+San Francisco opens on the Simtra city artwork. Drag to pan; scroll, pinch, or use +/− to zoom into an illustrative walkable street. Use the City overview button, M, Escape, or zoom out to return. Compare cities keeps the original five-city story available. Other cities currently use the schematic street scenes.
+
+Resident clicks now emit stable selection IDs for the resident-profile branch; profiles and AI responses are not implemented here. See [map integration handoff](dist/map/README.md) for selection state, events, controls, asset provenance, and tests.
+
 ## Data and limits
 
 `dist/assets/data.json` contains 20 source-linked city records. Each building represents its city's median gross rent, not an actual property listing. Streets and buildings are fictional. Income is median household income, not wages or youth income.
