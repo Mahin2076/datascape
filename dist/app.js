@@ -46,6 +46,7 @@ export const mapIntegration = Object.freeze({
  getSelectedResident(){return selectedResident;},
  getResidentTargets(){return sceneSnapshot().residents;},
  getScene:sceneSnapshot,
+ enterNeighborhood(){if(overview){if(cityMap.active)return cityMap.enter();enterStreet();}},
  onSceneFrame(callback){sceneListeners.add(callback);return()=>sceneListeners.delete(callback);},
  async enterDemoNeighborhood(signal){
   if(!overview)return;

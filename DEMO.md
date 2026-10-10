@@ -2,7 +2,7 @@
 
 ## Live neighborhood story
 
-Run `npm ci` and `npm start`, then open http://127.0.0.1:8124 and choose **Play neighborhood story**. Use **Next chapter** to reveal city-median house labels, a rent +10% shock with live speech bubbles, and income +5% with new replies. **Read all replies** shows every nearby household's line. The API key stays server-side in ignored `.env.local`; see [server/README.md](server/README.md) for the full flow and limits.
+Run `npm ci` and `npm start`, then open http://127.0.0.1:8124 and choose **Play demo**. Use **Next chapter** to reveal city-median house labels, a rent +10% shock with live speech bubbles, and income +5% with new replies. **Read all replies** shows every nearby household's line. The API key stays server-side in ignored `.env.local`; see [server/README.md](server/README.md) for the full flow and limits.
 
 ## Original three-minute walkthrough
 

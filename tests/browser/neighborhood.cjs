@@ -16,7 +16,17 @@ async function mockReply(route){
       const page=await browser.newPage({viewport:{width,height:1000},reducedMotion:'reduce'});const errors=[];
       page.on('pageerror',e=>errors.push(e.message));
       if(!live||width===375)await page.route(api,mockReply);
-      await page.goto(base);await page.locator('.nc-demo-launcher').click();
+      await page.goto(base);
+      await page.waitForSelector('#loading',{state:'hidden'});
+      assert.equal(await page.locator('.nc-input').isVisible(),true);
+      assert.equal(await page.locator('#compareView').isVisible(),false);
+      assert.equal(await page.locator('#housingYear').isVisible(),false);
+      await page.screenshot({path:`test-results/simplified-${width}.png`});
+      await page.locator('.nc-input').fill('What is housing like here?');
+      await page.locator('.nc-send').click();
+      await page.waitForSelector('.nc-shell[data-method=ai]:not([aria-busy])',{timeout:60000});
+      await page.locator('.explore-menu summary').click();await page.locator('#housingYear').selectOption('2024');await page.locator('.explore-menu summary').click();
+      await page.locator('.nc-demo-launcher').click();
       await page.waitForSelector('#game[data-view=street]',{timeout:45000});
       await page.waitForFunction(()=>document.querySelector('.nc-step').textContent.startsWith('01'));
       await page.waitForSelector('.nc-house');
@@ -55,7 +65,7 @@ async function mockReply(route){
       const pending=page.waitForRequest(r=>r.url().endsWith('/api/neighborhood-chat'));
       await page.locator('.nc-input').fill('Could you stay after another increase?');
       await page.locator('.nc-form').evaluate(form=>form.requestSubmit());await pending;
-      await page.locator('#housingYear').selectOption('2021');await page.waitForTimeout(700);
+      await page.locator('.explore-menu summary').click();await page.locator('#housingYear').selectOption('2021');await page.waitForTimeout(700);
       assert.equal(await page.locator('.nc-bubble').count(),0);
       assert.equal(await page.locator('.nc-shell').getAttribute('data-method'),null);
       assert.deepEqual(errors,[]);

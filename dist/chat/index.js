@@ -7,21 +7,17 @@ const pause=(ms,signal)=>new Promise((resolve,reject)=>{if(signal.aborted)return
 
 export function mountNeighborhoodChat({root,map,closeProfiles}){
   const style=el('link','');style.rel='stylesheet';style.href=new URL('./chat.css',import.meta.url).href;document.head.append(style);
-  const shell=el('section','nc-shell');shell.setAttribute('aria-label','Neighborhood chat');shell.hidden=true;
-  const eyebrow=el('div','nc-eyebrow','THE NEIGHBORHOOD HAS A VOICE');
-  const heading=el('div','nc-heading');const title=el('h2','','Ask the people who live here.');
-  const dismiss=button('×','nc-dismiss',()=>{stopDemo();clearReplies();shell.hidden=true;root.classList.remove('chat-open');});dismiss.setAttribute('aria-label','Close neighborhood chat');heading.append(title,dismiss);
+  const shell=el('section','nc-shell');shell.setAttribute('aria-label','Neighborhood chat');shell.hidden=false;
+  const heading=el('div','nc-heading');const title=el('h2','','Ask this neighborhood');
+  heading.append(title);
   const sub=el('p','nc-context','Zoom into a street to meet your neighbors.');
-  const form=el('form','nc-form');const input=el('input','nc-input');input.placeholder='Could you still afford to stay?';input.maxLength=600;input.required=true;input.setAttribute('aria-label','Ask this neighborhood about housing');
-  const submit=el('button','nc-send','Ask neighbors ↗');submit.type='submit';form.append(input,submit);
-  const prompts=el('div','nc-prompts');
-  for(const [label,q] of [['Could you stay?','Could you afford to stay here if your rent went up?'],['What is hard about housing?','What is the hardest part of affording housing here?'],['What would help?','What housing change would make the biggest difference for your household?']]) prompts.append(button(label,'',()=>{input.value=q;stopDemo();void ask(q);}));
-  const tools=el('div','nc-tools');const houseToggle=button('⌂ House lens','nc-lens',()=>{lens=!lens;houseToggle.setAttribute('aria-pressed',String(lens));});houseToggle.setAttribute('aria-pressed','false');
+  const form=el('form','nc-form');const input=el('input','nc-input');input.placeholder='What’s it like to afford a home here?';input.maxLength=600;input.required=true;input.setAttribute('aria-label','Ask this neighborhood about housing');
+  const submit=el('button','nc-send','Ask neighbors');submit.type='submit';form.append(input,submit);
+  const tools=el('div','nc-tools');
   const transcriptToggle=button('Read all replies','',()=>{transcript.hidden=!transcript.hidden;});
-  const waveButton=button('Next voices →','',()=>{wave++;waveAt=performance.now();});waveButton.hidden=true;
-  tools.append(houseToggle,transcriptToggle,waveButton);
+  transcriptToggle.hidden=true;tools.append(transcriptToggle);
   const status=el('p','nc-status','AI dialogue · fictional residents · sourced citywide context');status.setAttribute('role','status');
-  shell.append(eyebrow,heading,sub,form,prompts,tools,status);
+  shell.append(heading,sub,form,tools,status);
   const overlay=el('div','nc-overlay');overlay.setAttribute('aria-hidden','true');
   const transcript=el('aside','nc-transcript');transcript.hidden=true;transcript.setAttribute('aria-label','All neighborhood replies');
   const transcriptHead=el('header','nc-transcript-head');transcriptHead.append(el('b','','Voices from this block'),button('×','',()=>transcript.hidden=true));
@@ -29,17 +25,15 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
   const demo=el('section','nc-demo');demo.hidden=true;const stepLabel=el('small','nc-step');const demoTitle=el('h2','');const caption=el('p','');const progress=el('div','nc-progress');
   for(let i=0;i<4;i++)progress.append(el('i',''));
   const demoActions=el('div','nc-demo-actions');const demoNext=button('Next chapter →','',()=>void nextDemo());const demoStop=button('End story','',stopDemo);demoActions.append(demoNext,demoStop);demo.append(stepLabel,demoTitle,caption,progress,demoActions);
-  const launcher=button('◌ Talk to the neighborhood','nc-launcher',()=>open());
-  const demoLauncher=button('▶ Play neighborhood story','nc-demo-launcher',()=>void startDemo());
-  root.append(overlay,shell,transcript,demo,launcher,demoLauncher);
+  const demoLauncher=button('Play demo','nc-demo-launcher',()=>void startDemo());
+  root.append(overlay,shell,transcript,demo);heading.append(demoLauncher);root.classList.add('chat-open');
   let scene=map.getScene(),selection=map.selection.get(),housing=null,lens=false,replies=[],bubbleNodes=new Map(),houseNodes=new Map();
   let request=null,version=0,history=[],wave=0,waveAt=0,housingVersion=0,region=scene.regionKey;
   let demoController=null,demoIndex=-1,demoBusy=false,originalAmbient=null;
-  const waveSize=()=>scene.width<650?2:4;
 
   function open(){closeProfiles();shell.hidden=false;root.classList.add('chat-open');input.focus();}
   function clearReplies(){
-    version++;request?.abort();request=null;replies=[];bubbleNodes.forEach(n=>n.remove());bubbleNodes.clear();waveButton.hidden=true;submit.disabled=false;submit.textContent='Ask neighbors ↗';shell.removeAttribute('aria-busy');
+    version++;request?.abort();request=null;replies=[];bubbleNodes.forEach(n=>n.remove());bubbleNodes.clear();transcriptToggle.hidden=true;submit.disabled=false;submit.textContent='Ask neighbors';shell.removeAttribute('aria-busy');
     delete shell.dataset.replyCount;delete shell.dataset.method;
     if(originalAmbient!==null){map.setAmbient(originalAmbient);originalAmbient=null;}
   }
@@ -51,6 +45,15 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
   });
   async function ask(question){
     if(!question.trim())return false;
+    if(scene.mode!=='street'){
+      submit.disabled=true;submit.textContent='Opening…';status.textContent='Opening the neighborhood at the center of your map…';
+      const city=selection.cityId;map.enterNeighborhood();
+      const started=performance.now();
+      while(scene.mode!=='street'&&selection.cityId===city&&performance.now()-started<15000)await new Promise(resolve=>setTimeout(resolve,100));
+      submit.disabled=false;submit.textContent='Ask neighbors';
+      if(selection.cityId!==city){status.textContent='City changed. Ask your question again.';return false;}
+      if(scene.mode!=='street'){status.textContent='Choose a street on the map, then ask again.';return false;}
+    }
     const people=nearbyResidents(scene);
     if(!people.length){open();status.textContent='Zoom into a street and move near residents before asking.';return false;}
     clearReplies();open();
@@ -73,12 +76,12 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
       shell.dataset.replyCount=String(replies.length);shell.dataset.method='ai';
       transcriptBody.append(el('p','nc-question',question));
       for(const reply of replies){const card=el('article',`nc-reply nc-${reply.mood}`);card.append(el('b','',reply.name),el('p','',reply.text),el('small','',`Illustrative rent ${dollars(reply.budget.rent)} · left after rent ${dollars(reply.budget.remaining)}`));transcriptBody.append(card);}
-      waveButton.hidden=replies.length<=waveSize();
+      transcriptToggle.hidden=false;
       return true;
     }catch(error){
       if(token===version&&!controller.signal.aborted){clearReplies();status.textContent=error.name==='TimeoutError'?'The neighborhood took too long to answer. Try again.':error.message;return false;}
       return false;
-    }finally{if(token===version){request=null;submit.disabled=false;submit.textContent='Ask neighbors ↗';shell.removeAttribute('aria-busy');}}
+    }finally{if(token===version){request=null;submit.disabled=false;submit.textContent='Ask neighbors';shell.removeAttribute('aria-busy');}}
   }
   form.addEventListener('submit',event=>{event.preventDefault();stopDemo();void ask(input.value);});
 
@@ -86,7 +89,6 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
     if(replies.length&&now-waveAt>6500){wave++;waveAt=now;}
     const groups=speechWaves(replies,scene);
     const expanded=new Set(groups.length?groups[wave%groups.length]:[]);
-    if(groups.length>1)waveButton.textContent=`Voices ${wave%groups.length+1}/${groups.length} →`;
     const positions=new Map(scene.residents.map(r=>[r.residentId,r]));
     for(const reply of replies){
       let node=bubbleNodes.get(reply.id);
@@ -122,8 +124,7 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
     if(scene.mode!=='street'&&demoIndex>=0)stopDemo();
     if(region!==scene.regionKey||scene.mode!=='street'&&replies.length){region=scene.regionKey;clearReplies();history=[];}
     const count=nearbyResidents(scene).length;
-    sub.textContent=scene.mode==='street'?`${housing?.geography||selection.cityId} · ${selection.year} · ${count} nearby voices`:'Zoom into a street to ask the people around you.';
-    launcher.textContent=scene.mode==='street'?`◌ Ask ${count} neighbors`:'◌ Talk to the neighborhood';
+    sub.textContent=scene.mode==='street'?`${housing?.geography||selection.cityId} · ${selection.year} · ${count} nearby voices`:'Ask a housing question. We’ll open this area and hear from nearby residents.';
     updateBubbles(performance.now());updateHouses();
   });
 
@@ -131,7 +132,7 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
   async function startDemo(){
     stopDemo();clearReplies();closeProfiles();const controller=new AbortController();demoController=controller;
     demoLauncher.disabled=true;demo.hidden=false;root.classList.add('demo-playing');stepLabel.textContent='A DATASCAPE SHORT STORY';demoTitle.textContent='Finding our block…';caption.textContent='Loading the neighborhood. Every house sets the scene. Every household has a voice.';
-    try{await map.enterDemoNeighborhood(controller.signal);if(controller.signal.aborted)return;await pause(160,controller.signal);lens=true;houseToggle.setAttribute('aria-pressed','true');open();demoIndex=-1;await nextDemo();}
+    try{await map.enterDemoNeighborhood(controller.signal);if(controller.signal.aborted)return;await pause(160,controller.signal);lens=true;open();demoIndex=-1;await nextDemo();}
     catch(error){if(!controller.signal.aborted){caption.textContent='This neighborhood could not load. Check the connection and try again.';demoLauncher.disabled=false;}}
   }
   async function nextDemo(){
@@ -150,5 +151,5 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
     }
   }
   root.dataset.neighborhoodChat='ready';
-  return {ask,open,startDemo,destroy(){stopDemo();clearReplies();unsubscribe();[shell,overlay,transcript,demo,launcher,demoLauncher,style].forEach(n=>n.remove());}};
+  return {ask,open,startDemo,destroy(){stopDemo();clearReplies();unsubscribe();[shell,overlay,transcript,demo,demoLauncher,style].forEach(n=>n.remove());}};
 }

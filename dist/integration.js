@@ -30,4 +30,18 @@ document.querySelector('#compareView').addEventListener('click',()=>stories.clos
 sync(mapIntegration.selection.get());
 root.dataset.storiesReady='true';
 
+// Keep secondary exploration controls available without crowding the map.
+const explore=document.createElement('details');explore.className='explore-menu';
+const summary=document.createElement('summary');summary.textContent='Explore';
+const options=document.createElement('div');options.className='explore-options';
+explore.append(summary,options);
+for(const selector of ['#mapNavigation','#mapToggle','#about','.zoom','#askToggle'])options.append(document.querySelector(selector));
+document.querySelector('.header-actions').append(explore);
+options.querySelector('#askToggle').textContent='Compare housing data';
+options.querySelector('#about').textContent='Data & sources';
+for(const select of options.querySelectorAll('select')){const label=document.createElement('label');label.textContent=select.getAttribute('aria-label');select.before(label);label.append(select);}
+options.addEventListener('click',event=>{if(event.target.closest('button')&&!event.target.closest('.zoom'))explore.open=false;});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')explore.open=false;});
+document.addEventListener('pointerdown',event=>{if(!explore.contains(event.target))explore.open=false;});
+
 mountNeighborhoodChat({root,map:mapIntegration,closeProfiles:()=>stories.close()});

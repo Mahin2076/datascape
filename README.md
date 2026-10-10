@@ -29,7 +29,7 @@ For only the static housing explorer, `python3 -m http.server 8123 --directory d
 
 ## Integrated hackathon demo
 
-See [DEMO.md](DEMO.md) for the three-minute flow, verification results and setup. Resident profiles use the production housing data module. **Play neighborhood story** walks through a rent shock and an income improvement with house labels and live resident speech bubbles.
+See [DEMO.md](DEMO.md) for the three-minute flow, verification results and setup. Resident profiles use the production housing data module. **Play demo** walks through a rent shock and an income improvement with house labels and live resident speech bubbles.
 
 ## City overview
 

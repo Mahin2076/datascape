@@ -2,3 +2,18 @@
 #mapNavigation select{pointer-events:auto;max-width:155px;border:1px solid #8d9b89;background:#edede3;color:#294337;padding:6px;font:10px ui-monospace,monospace}
 #game .rs-panel{top:110px;max-height:calc(100% - 175px)}
 @media(max-width:650px){#game .rs-panel{top:auto;bottom:72px;max-height:60vh}#mapNavigation{gap:4px}#mapNavigation select{max-width:130px}}
+/* One primary question box; secondary controls live in Explore. */
+.hud{z-index:10}
+.explore-menu{position:relative;font:12px ui-monospace,monospace}
+.explore-menu>summary{cursor:pointer;padding:9px 12px;list-style:none;border:1px solid #bac3b4;border-radius:5px}
+.explore-menu>summary::-webkit-details-marker{display:none}
+.explore-menu>summary::after{content:' ⌄'}
+.explore-options{position:absolute;right:0;top:38px;width:230px;max-height:75dvh;overflow:auto;padding:14px;background:#f7f3e8;border:1px solid #bac3b4;border-radius:8px;box-shadow:0 10px 35px #132b3640;display:flex;flex-direction:column;gap:10px}
+#game .explore-options #mapNavigation,#game .explore-options .zoom{position:static;display:flex;opacity:1;pointer-events:auto;transform:none;max-width:none;background:none;border:0}
+#game .explore-options #mapNavigation{flex-direction:column;align-items:stretch;gap:10px}
+#game .explore-options button{height:auto;padding:9px;text-align:left;border:1px solid #d6dbd0;border-radius:4px;font-size:11px;background:transparent;visibility:visible}
+#game .explore-options label{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#677563}
+#game .explore-options select{max-width:none;width:100%;font-size:12px}
+#game .explore-options .zoom button{flex:1;text-align:center}
+#game .explore-options #ambient{display:block}
+#mapCaption{display:none!important}

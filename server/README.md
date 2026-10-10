@@ -4,14 +4,14 @@ Run `npm ci` and `npm start`, then open http://127.0.0.1:8124. The key stays in 
 
 ## Demo
 
-Click **Play neighborhood story**. The app loads the SF demo neighborhood, then **Next chapter** walks through four beats:
+Click **Play demo**. The app loads the SF demo neighborhood, then **Next chapter** walks through four beats:
 
 1. **Every window. A different story.** House labels show citywide Census median rent.
 2. **Then the rent goes up.** Rent +10%; every nearby on-screen resident receives a live generated line above their head.
 3. **Does a raise close the gap?** Keep the rent shock, add income +5%, and ask the same households what changes.
 4. **A city is more than its median.** Explain the distinction between Census observations, deterministic budget calculations and fictional AI dialogue.
 
-Speech bubbles take turns in spatially separated waves. Compact name bubbles keep other responding residents visible, **Voices →** advances the wave, and **Read all replies** provides the complete transcript. Walking pauses while replies are displayed and resumes when they are cleared. The house lens is a city-median scenario, explicitly not an asking rent or a neighborhood estimate. The question box can ask any housing question about the current context; insufficient-data questions should receive a limitation rather than invented facts.
+Speech bubbles take turns in spatially separated waves. Compact name bubbles keep other responding residents visible, **Read all replies** provides the complete transcript. Walking pauses while replies are displayed and resumes when they are cleared. The house lens is a city-median scenario, explicitly not an asking rent or a neighborhood estimate. The question box is always visible at the top. Asking from the map opens the current neighborhood automatically. Secondary map, year, resident and data controls are under **Explore**. The question box can ask any housing question about the current context; insufficient-data questions should receive a limitation rather than invented facts.
 
 ## API contract and limits
 
