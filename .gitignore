@@ -1,0 +1,13 @@
+# Purchased artwork — keep local, never publish as source assets
+/dist/assets/world-atlas.png
+/dist/assets/city-atlas.png
+
+# Credentials, hosting state, and local files
+.env
+.env.*
+!.env.example
+.openai/
+.DS_Store
+node_modules/
+*.zip
+*.tar.gz

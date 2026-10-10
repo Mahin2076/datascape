@@ -1,0 +1,400 @@
+{
+  "title": "DataScape \u00b7 City affordability",
+  "years": [
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "dataset": "U.S. Census Bureau ACS 5-year estimates",
+  "notes": [
+    "Year labels identify five-year estimate periods ending in that year; adjacent periods overlap.",
+    "Median gross rent covers renter-occupied units paying cash rent. Income is median household income for all households, not wages or youth income.",
+    "Annualized rent divided by median household income is a comparison proxy, not the median share paid by renters.",
+    "Dollar estimates are in each release year\u2019s dollars. Changes are nominal; no inflation adjustment across releases.",
+    "All values are city/place geographies. Statistical significance of differences has not been tested.",
+    "Animation is illustrative; city locations and streets are schematic."
+  ],
+  "cities": [
+    {
+      "id": "sf",
+      "name": "San Francisco",
+      "state": "CA",
+      "geoid": "0667000",
+      "data": [
+        {
+          "year": 2021,
+          "period": "2017\u20132021",
+          "rent": 2130,
+          "rentMoe": 27,
+          "income": 126187,
+          "incomeMoe": 2010,
+          "population": 865933,
+          "housingUnits": 404720,
+          "vacantUnits": 43498,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25002.dat"
+          }
+        },
+        {
+          "year": 2022,
+          "period": "2018\u20132022",
+          "rent": 2316,
+          "rentMoe": 33,
+          "income": 136689,
+          "incomeMoe": 1954,
+          "population": 851036,
+          "housingUnits": 408198,
+          "vacantUnits": 47356,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25002.dat"
+          }
+        },
+        {
+          "year": 2023,
+          "period": "2019\u20132023",
+          "rent": 2419,
+          "rentMoe": 26,
+          "income": 141446,
+          "incomeMoe": 2576,
+          "population": 836321,
+          "housingUnits": 411542,
+          "vacantUnits": 48892,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25002.dat"
+          }
+        },
+        {
+          "year": 2024,
+          "period": "2020\u20132024",
+          "rent": 2476,
+          "rentMoe": 30,
+          "income": 140970,
+          "incomeMoe": 2593,
+          "population": 830235,
+          "housingUnits": 414602,
+          "vacantUnits": 50632,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25002.dat"
+          }
+        }
+      ]
+    },
+    {
+      "id": "nyc",
+      "name": "New York",
+      "state": "NY",
+      "geoid": "3651000",
+      "data": [
+        {
+          "year": 2021,
+          "period": "2017\u20132021",
+          "rent": 1579,
+          "rentMoe": 6,
+          "income": 70663,
+          "incomeMoe": 449,
+          "population": 8736047,
+          "housingUnits": 3590995,
+          "vacantUnits": 340338,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25002.dat"
+          }
+        },
+        {
+          "year": 2022,
+          "period": "2018\u20132022",
+          "rent": 1714,
+          "rentMoe": 6,
+          "income": 76607,
+          "incomeMoe": 512,
+          "population": 8622467,
+          "housingUnits": 3620774,
+          "vacantUnits": 337970,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25002.dat"
+          }
+        },
+        {
+          "year": 2023,
+          "period": "2019\u20132023",
+          "rent": 1779,
+          "rentMoe": 6,
+          "income": 79713,
+          "incomeMoe": 602,
+          "population": 8516202,
+          "housingUnits": 3649896,
+          "vacantUnits": 336580,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25002.dat"
+          }
+        },
+        {
+          "year": 2024,
+          "period": "2020\u20132024",
+          "rent": 1821,
+          "rentMoe": 7,
+          "income": 80483,
+          "incomeMoe": 601,
+          "population": 8483844,
+          "housingUnits": 3678486,
+          "vacantUnits": 344398,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25002.dat"
+          }
+        }
+      ]
+    },
+    {
+      "id": "austin",
+      "name": "Austin",
+      "state": "TX",
+      "geoid": "4805000",
+      "data": [
+        {
+          "year": 2021,
+          "period": "2017\u20132021",
+          "rent": 1415,
+          "rentMoe": 9,
+          "income": 78965,
+          "incomeMoe": 1012,
+          "population": 944658,
+          "housingUnits": 433129,
+          "vacantUnits": 29008,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25002.dat"
+          }
+        },
+        {
+          "year": 2022,
+          "period": "2018\u20132022",
+          "rent": 1549,
+          "rentMoe": 17,
+          "income": 86556,
+          "incomeMoe": 1183,
+          "population": 958202,
+          "housingUnits": 449452,
+          "vacantUnits": 26373,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25002.dat"
+          }
+        },
+        {
+          "year": 2023,
+          "period": "2019\u20132023",
+          "rent": 1655,
+          "rentMoe": 13,
+          "income": 91461,
+          "incomeMoe": 1237,
+          "population": 967862,
+          "housingUnits": 466428,
+          "vacantUnits": 26134,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25002.dat"
+          }
+        },
+        {
+          "year": 2024,
+          "period": "2020\u20132024",
+          "rent": 1729,
+          "rentMoe": 14,
+          "income": 93658,
+          "incomeMoe": 1670,
+          "population": 979539,
+          "housingUnits": 483071,
+          "vacantUnits": 26958,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25002.dat"
+          }
+        }
+      ]
+    },
+    {
+      "id": "chicago",
+      "name": "Chicago",
+      "state": "IL",
+      "geoid": "1714000",
+      "data": [
+        {
+          "year": 2021,
+          "period": "2017\u20132021",
+          "rent": 1209,
+          "rentMoe": 7,
+          "income": 65781,
+          "incomeMoe": 622,
+          "population": 2742119,
+          "housingUnits": 1252478,
+          "vacantUnits": 139897,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25002.dat"
+          }
+        },
+        {
+          "year": 2022,
+          "period": "2018\u20132022",
+          "rent": 1314,
+          "rentMoe": 10,
+          "income": 71673,
+          "incomeMoe": 639,
+          "population": 2721914,
+          "housingUnits": 1258704,
+          "vacantUnits": 128796,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25002.dat"
+          }
+        },
+        {
+          "year": 2023,
+          "period": "2019\u20132023",
+          "rent": 1380,
+          "rentMoe": 10,
+          "income": 75134,
+          "incomeMoe": 876,
+          "population": 2707648,
+          "housingUnits": 1268199,
+          "vacantUnits": 121652,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25002.dat"
+          }
+        },
+        {
+          "year": 2024,
+          "period": "2020\u20132024",
+          "rent": 1440,
+          "rentMoe": 10,
+          "income": 77902,
+          "incomeMoe": 907,
+          "population": 2711226,
+          "housingUnits": 1277054,
+          "vacantUnits": 116849,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25002.dat"
+          }
+        }
+      ]
+    },
+    {
+      "id": "seattle",
+      "name": "Seattle",
+      "state": "WA",
+      "geoid": "5363000",
+      "data": [
+        {
+          "year": 2021,
+          "period": "2017\u20132021",
+          "rent": 1801,
+          "rentMoe": 14,
+          "income": 105391,
+          "incomeMoe": 1399,
+          "population": 726054,
+          "housingUnits": 362809,
+          "vacantUnits": 25448,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2021/table-based-SF/data/5YRData/acsdt5y2021-b25002.dat"
+          }
+        },
+        {
+          "year": 2022,
+          "period": "2018\u20132022",
+          "rent": 1945,
+          "rentMoe": 19,
+          "income": 116068,
+          "incomeMoe": 1579,
+          "population": 734603,
+          "housingUnits": 372436,
+          "vacantUnits": 27190,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b25002.dat"
+          }
+        },
+        {
+          "year": 2023,
+          "period": "2019\u20132023",
+          "rent": 1998,
+          "rentMoe": 20,
+          "income": 121984,
+          "incomeMoe": 1723,
+          "population": 741440,
+          "housingUnits": 382933,
+          "vacantUnits": 29914,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b25002.dat"
+          }
+        },
+        {
+          "year": 2024,
+          "period": "2020\u20132024",
+          "rent": 2030,
+          "rentMoe": 22,
+          "income": 123860,
+          "incomeMoe": 2244,
+          "population": 754195,
+          "housingUnits": 393918,
+          "vacantUnits": 30452,
+          "sources": {
+            "b25064": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25064.dat",
+            "b19013": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b19013.dat",
+            "b01003": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b01003.dat",
+            "b25002": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b25002.dat"
+          }
+        }
+      ]
+    }
+  ]
+}
