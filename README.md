@@ -12,27 +12,30 @@ Explore housing data by walking through a pixel city. Built for a one-day hackat
 - Choose a historical year and compare all five cities using sourced Census medians.
 - Ask supported questions about rent growth and affordability.
 
-Vanilla JavaScript, HTML, CSS, and Canvas. No API key, package install, or build step.
+Vanilla JavaScript, HTML, CSS, and Canvas, with a small Node server for live neighborhood chat. The static housing explorer still works without a key or build step.
 
 ## Run locally
 
-The compiled artwork atlases used by the app are included. From the repository root:
+For the complete app, including live neighborhood chat:
 
 ```sh
-python3 -m http.server 8123 --directory dist
+npm ci
+npm start
 ```
 
-Open http://localhost:8123.
+Open http://127.0.0.1:8124. The server loads `OPENAI_API_KEY` from the ignored `.env.local` file; credentials never go into browser files. `OPENAI_MODEL` can override the default. A valid API key and API billing are needed for live replies. See [chat architecture and verification](server/README.md).
+
+For only the static housing explorer, `python3 -m http.server 8123 --directory dist` still works. Live chat reports unavailable on that server.
 
 ## Integrated hackathon demo
 
-See [DEMO.md](DEMO.md) for the three-minute flow, verification results and setup. Resident profiles use the production housing data module and explicitly labeled scripted reactions.
+See [DEMO.md](DEMO.md) for the three-minute flow, verification results and setup. Resident profiles use the production housing data module. **Play neighborhood story** walks through a rent shock and an income improvement with house labels and live resident speech bubbles.
 
 ## City overview
 
 San Francisco opens on an interactive satellite map using Leaflet and Esri World Imagery. Map tiles require an internet connection; no API key is needed. Scroll into the map to load that location’s OpenStreetMap geometry and blend into a walkable pixel scene, then scroll out to return to satellite imagery. SF roads, parks, building footprints, water and tagged sports fields keep their real positions, with LimeZu artwork. The first visit to a neighborhood requires a brief geometry download. Click entry also works. Drag to pan or use +/− to zoom the overview. Click pavement to walk. Use the City overview button, M, Escape, or zoom out to return. Compare cities keeps the original five-city story available. Other cities currently use the schematic street scenes.
 
-Resident clicks open fictional household profiles using stable sprite IDs; the four household examples per city are reused across walking sprites. Scenarios update calculated budgets and scripted explanations. Live AI is not configured. See [map integration handoff](dist/map/README.md) for selection state, events, controls, asset provenance, and tests.
+Resident clicks open fictional household profiles using stable sprite IDs; the four household examples per city are reused across walking sprites. Scenarios update calculated budgets and scripted explanations. The resident profile card retains its labeled scripted explanation; **Talk to the neighborhood** provides separate live AI dialogue. See [map integration handoff](dist/map/README.md) for selection state, events, controls, asset provenance, and tests.
 
 ## Data and limits
 

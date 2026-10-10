@@ -1,3 +1,4 @@
+import { mountNeighborhoodChat } from './chat/index.js';
 import { mapIntegration } from './app.js';
 import { createResidentStories } from './residents/index.js';
 import { profilesForSprites } from './residents/map-profiles.js';
@@ -28,3 +29,5 @@ document.querySelector('#cityView').addEventListener('click',()=>stories.close()
 document.querySelector('#compareView').addEventListener('click',()=>stories.close());
 sync(mapIntegration.selection.get());
 root.dataset.storiesReady='true';
+
+mountNeighborhoodChat({root,map:mapIntegration,closeProfiles:()=>stories.close()});
