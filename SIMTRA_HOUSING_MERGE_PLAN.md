@@ -1,6 +1,6 @@
 # Simtra × DataScape — Housing Merge Architecture Plan
 
-**Status:** Proposed; implementation not started · **Updated:** 2026-10-10 · **Current target repo:** `Mahin2076/datascape`
+**Status:** Core demo integrated locally; research integration pending · **Updated:** 2026-10-10 · **Current target repo:** `Mahin2076/datascape`
 **Current integration candidate:** Cala for sourced housing research, subject to coverage verification.
 
 ## Current hackathon scope and three-person work split
@@ -54,7 +54,7 @@ The budget denominator must be an explicitly chosen or labeled illustrative hous
 
 ### Tasks and merge order
 
-All items below are pending. Existing DataScape timeline, inspections, and comparisons are starting points, not evidence that the new flow is complete.
+The integration branch combines the SF map, resident profiles, sourced housing access, scenario calculations, shared selection and app wiring. The core SF flow and all five cities' profile/scenario calculations have browser coverage; see `DEMO.md`. Reactions are scripted. Cala research (H6) remains unconfigured and unverified. Map and resident module boundaries are documented in their READMEs.
 
 | ID | Owner | Task | Depends on | Acceptance evidence |
 |---|---|---|---|---|

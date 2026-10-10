@@ -7,3 +7,6 @@
 node_modules/
 *.zip
 *.tar.gz
+
+# Local browser verification output
+test-results/

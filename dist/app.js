@@ -1,17 +1,130 @@
+import {createHousingData} from './data/index.js';
+import {walkingPosition} from './map/residents.js';
+import {createPlaceLoader,buildPlaceScene} from './map/places.js';
+import { streetCamera } from './map/geometry.js';
+import { createCityOverview } from './map/city-overview.js';
+import { createSelectionStore } from './map/selection.js';
 const $=s=>document.querySelector(s),canvas=$('#world'),ctx=canvas.getContext('2d'),mini=$('#mini'),mc=mini.getContext('2d');
 const money=n=>'$'+Math.round(n).toLocaleString('en-US'),pct=n=>(n*100).toFixed(1)+'%',ratio=d=>12*d.rent/d.income;
 const image=src=>new Promise((resolve,reject)=>{let a=new Image();a.onload=()=>resolve(a);a.onerror=()=>reject(Error('Could not load '+src));a.src=src});
 let db,atlas,art,chars;
 try{[db,atlas,art,chars]=await Promise.all([fetch('assets/data.json').then(r=>r.json()),fetch('assets/world-atlas.json').then(r=>r.json()),image('assets/world-atlas.png'),image('assets/sprites.png')]);}catch(e){$('#loading h1').textContent='The city could not load';$('#loading p').textContent='Please refresh to try again.';throw e;}
+const housingData=createHousingData(db);
 const W=1536,H=1152,cities=db.cities,origins=[[48,64],[560,64],[1072,64],[48,624],[560,624]], names=['Pacific Court','Hudson House','Juniper Place','Lakeside Row','Cedar Court'];
 let year=0,current=0,near=null,inspected=null,overview=true,zoom=1.65,ambient=!matchMedia('(prefers-reduced-motion: reduce)').matches,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,discovered=new Set(),clock=0,keys=new Set(),path=[],last=0,timer=null,toastTimer;
 const player={x:320,y:304,dir:0,char:0,moving:false},cam={x:320,y:272,z:1.65};
+const selection = createSelectionStore({ cityIds: cities.map(c=>c.id), years: db.years });
+const residentEvents = new EventTarget();
+const sceneListeners = new Set();
+let selectedResident = null, residentHits = [], syncingSelection = false;
+const streetPositions = new Map();
+let mappedScene=null;const loadPlace=createPlaceLoader();
+const sports={soccer:await image('assets/places/soccer.png'),basketball:await image('assets/places/basketball.png')};
+const preparedPlaces=new Map();
+async function preparePlace(center){
+ const key=`${center.lat.toFixed(6)},${center.lng.toFixed(6)}`,started=performance.now();
+ if(preparedPlaces.has(key)){const scene=await preparedPlaces.get(key);canvas.dataset.placeTiming=JSON.stringify({source:'prepared',loadMs:0,buildMs:0,totalMs:Math.round(performance.now()-started)});return scene;}
+ const promise=(async()=>{
+  const features=await loadPlace(center),loaded=performance.now();
+  const scene=buildPlaceScene(features,center,{patterns,sports,sprite,atlas});
+  canvas.dataset.placeTiming=JSON.stringify({source:'generated',loadMs:Math.round(loaded-started),buildMs:Math.round(performance.now()-loaded),totalMs:Math.round(performance.now()-started)});return scene;
+ })();
+ preparedPlaces.set(key,promise);while(preparedPlaces.size>4)preparedPlaces.delete(preparedPlaces.keys().next().value);
+ try{return await promise;}catch(error){preparedPlaces.delete(key);throw error;}
+}
+
+const cityMap = createCityOverview({ reducedMotion: reduced, prepare:preparePlace,preload:center=>loadPlace(center),onPrepare:loading=>{$('#game').dataset.loadingPlace=String(loading);$('#mapCaption').textContent=loading?'Loading this neighborhood…':'Scroll in to explore · scroll out to return';},onPrepareError:()=>toast('Could not load this neighborhood. Try again in a moment.'), onEnter:options=>enterStreet(options?.animated,options?.latlng,options?.prepared), onReturn:()=>{overview=true;refresh();}, onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
+function emitSelection(){
+ if(syncingSelection)return;
+ selection.set({cityId:cities[current].id,year:db.years[year]});
+}
+// Teammates import the store, subscribe to resident selection, and mount their own panel.
+export const mapIntegration = Object.freeze({
+ selection,
+ onResidentSelect(callback){const handler=e=>callback(e.detail.residentId,e.detail);residentEvents.addEventListener('select',handler);return()=>residentEvents.removeEventListener('select',handler);},
+ getResidents(){return cities.flatMap((c,i)=>(i===0?mappedNpc:npc).map(a=>({residentId:residentId(a,i),cityId:c.id,spriteIndex:a.char})));},
+ getSelectedResident(){return selectedResident;},
+ getResidentTargets(){return sceneSnapshot().residents;},
+ getScene:sceneSnapshot,
+ enterNeighborhood(){if(overview){if(cityMap.active)return cityMap.enter();enterStreet();}},
+ onSceneFrame(callback){sceneListeners.add(callback);return()=>sceneListeners.delete(callback);},
+ async enterDemoNeighborhood(signal){
+  if(!overview)return;
+  const center={lat:37.7641,lng:-122.4429};
+  selection.set({cityId:'sf',year:2024});
+  const scene=await preparePlace(center);if(signal?.aborted)return;
+  cityMap.close();enterStreet(false,center,scene);
+ },
+ setAmbient(value){ambient=Boolean(value);$('#ambient').textContent=ambient?'Ⅱ':'▶';$('#ambient').setAttribute('aria-label',ambient?'Pause ambient animation':'Resume ambient animation');}
+});
+function sceneSnapshot(){
+ const t=render.transform;
+ const active=!overview&&!cityMap.active&&Boolean(t);
+ const project=(x,y)=>({x:t.ox+x*t.scale,y:t.oy+y*t.scale});
+ return {mode:active?'street':cityMap.active?'city':'compare',cityId:cities[current].id,ambient,
+  regionKey:mappedScene?`${current}:${mappedScene.center.lat.toFixed(5)},${mappedScene.center.lng.toFixed(5)}`:`${current}:illustrative`,
+  width:canvas.clientWidth,height:canvas.clientHeight,
+  residents:active?residentHits.filter(a=>a.city===current).map(a=>({residentId:a.id,...project(a.x,a.y-8),distance:Math.hypot(a.x-player.x,a.y-player.y)})):[],
+  buildings:active?(mappedScene?mappedScene.buildings:buildings).filter(b=>mappedScene||b.city===current).map((b,i)=>({id:String(b.id??i),title:b.title,...project(b.x+b.w/2,b.y),width:b.w*t.scale,height:(b.foot-b.y)*t.scale,distance:Math.hypot(b.doorX-player.x,b.doorY-player.y)})):[]};
+}
+selection.subscribe(value=>{
+ if(cities[current].id===value.cityId&&db.years[year]===value.year)return;
+ syncingSelection=true;
+ if(cities[current].id!==value.cityId){const next=cities.findIndex(c=>c.id===value.cityId);if(!overview)travel(next);else{current=next;if(cityMap.active&&current!==0)cityMap.close();}}
+ year=db.years.indexOf(value.year);refresh();syncingSelection=false;
+});
+function updateMapUI(){
+ const mode=cityMap.active?'city':overview?'compare':'street';
+ $('#game').dataset.view=mode;$('#placeCredit').hidden=!(mode==='street'&&mappedScene);
+ $('#cityView').textContent=mode==='street'?'← City map':'City map';$('#mapCaption').hidden=mode!=='city';$('#mapMode').textContent=mode==='city'?'CITY / SAN FRANCISCO':mode==='compare'?'FIVE CITIES':`${cities[current].name.toUpperCase()} / STREET`;
+ $('#cityView').setAttribute('aria-pressed',String(mode==='city'));
+ $('#compareView').setAttribute('aria-pressed',String(mode==='compare'));
+ $('#cityCard').hidden=mode!=='city';$('#mapAttribution').hidden=mode!=='city';$('#streetHint').hidden=mode!=='street';$('#ambient').hidden=mode!=='street';
+ $('#cityRent').textContent=money(cities[0].data[year].rent);$('#cityIncome').textContent=money(cities[0].data[year].income);
+ $('#cityPeriod').textContent=`ACS ${cities[0].data[year].period} · overlapping five-year estimates. Figures describe the whole city.`;
+ $('#mapLegend').hidden=mode!=='compare';$('#story .story-key span:last-child').textContent=mode==='compare'?'Bars: 0–30% since 2021 · ACS estimates':'Citywide ACS estimates · Compare cities for growth bars';
+ $('#mapToggle').setAttribute('aria-label',mode==='street'?'Return to overview':'Explore selected city');
+ emitSelection();
+}
+function showCity(){
+ stopTimeline();keys.clear();path=[];
+ if(!overview)streetPositions.set(current,{x:player.x,y:player.y});
+ inspected=null;$('#inspection').hidden=true;$('#answer').hidden=true;$('#askform').hidden=true;
+ overview=true;
+ if(current===0)cityMap.open();else{cityMap.close();toast('Detailed city overview is available for San Francisco. Select a city to walk its illustrative streets.');}
+ refresh();
+}
+function showComparison(){
+ stopTimeline();if(!overview)streetPositions.set(current,{x:player.x,y:player.y});
+ cityMap.close();overview=true;keys.clear();path=[];inspected=null;$('#inspection').hidden=true;$('#answer').hidden=true;refresh();
+}
+function enterStreet(animated=false,latlng,preparedScene){
+ if(current===0&&!latlng&&cityMap.ready){if(!cityMap.active)cityMap.open();cityMap.enter();return;}
+ if(current===0&&latlng&&preparedScene){
+  const previous=mappedScene,oldPosition=[player.x,player.y];
+  travel(current);mappedScene=preparedScene;zoom=1.65;
+  const same=previous&&Math.abs(previous.center.lat-latlng.lat)<.00001&&Math.abs(previous.center.lng-latlng.lng)<.00001;
+  [player.x,player.y]=same?oldPosition:mappedScene.spawn;cam.x=player.x;cam.y=player.y-28;cam.z=animated?1.05:zoom;
+  canvas.dataset.place=JSON.stringify({center:latlng,features:mappedScene.features.length,pitches:mappedScene.features.filter(f=>f.type==='pitch').map(f=>({id:f.id,sport:f.tags.sport||'unspecified'}))});
+  updateMapUI();canvas.focus();return;
+ }
+ mappedScene=null;
+ stopTimeline();const saved=streetPositions.get(current);travel(current);zoom=1.65;
+ if(saved){player.x=saved.x;player.y=saved.y;cam.x=player.x;cam.y=player.y-28;}if(animated){cam.z=1.05;}updateMapUI();canvas.focus();
+}
+function zoomMap(delta){
+ if(cityMap.transitioning)return;
+ if(cityMap.active){cityMap.changeZoom(delta);return;}
+ if(overview){if(delta>0)enterStreet();return;}
+ if(delta<0&&zoom<=1.05){if(current===0){stopTimeline();streetPositions.set(current,{x:player.x,y:player.y});keys.clear();path=[];inspected=null;$('#inspection').hidden=true;$('#answer').hidden=true;zoom=.85;cityMap.exit();}else showCity();return;}
+ zoom=Math.max(.85,Math.min(3.2,zoom+delta*.25));
+}
 const buildings=[],props=[],obstacles=[];let seed=135;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
 const growth=(i,y=year)=>{const a=cities[i].data[0],b=cities[i].data[y];return {rent:(b.rent/a.rent-1)*100,income:(b.income/a.income-1)*100}};
 const gapColor=i=>{const g=growth(i);return year===0?'#d6d3bd':g.rent>g.income?'#e9a08a':'#80c6bb'};
 const color=d=>{let t=Math.max(0,Math.min(1,(ratio(d)-.18)/.1));return t<.5?'#8aaa71':t<.8?'#d3af65':'#d38d78'};
 function stopTimeline(){clearInterval(timer);timer=null;$('#play').textContent='▶';$('#play').setAttribute('aria-label','Play timeline');$('#watchStory').textContent='▶ Watch again'}
-function playStory(){stopTimeline();year=0;overview=true;inspected=null;$('#inspection').hidden=true;$('#answer').hidden=true;$('#mapLegend').hidden=false;keys.clear();path=[];refresh();$('#play').textContent='Ⅱ';$('#play').setAttribute('aria-label','Pause timeline');$('#watchStory').textContent='Playing…';timer=setInterval(()=>{year++;refresh();if(year===3){stopTimeline();revealStory()}},2600)}
+function playStory(){cityMap.close();stopTimeline();year=0;overview=true;inspected=null;$('#inspection').hidden=true;$('#answer').hidden=true;$('#mapLegend').hidden=false;keys.clear();path=[];refresh();$('#play').textContent='Ⅱ';$('#play').setAttribute('aria-label','Pause timeline');$('#watchStory').textContent='Playing…';timer=setInterval(()=>{year++;refresh();if(year===3){stopTimeline();revealStory()}},2600)}
 function revealStory(){stopTimeline();year=3;refresh();ask('Where did rent outpace income?')}
 
 function sprite(c,n,x,y,s=1){let a=atlas[n];c.drawImage(art,...a,Math.round(x),Math.round(y),a[2]*s,a[3]*s)}
@@ -42,23 +155,28 @@ origins.forEach(([x,y])=>{fill('cobble',x,y,416,432);fill('grass',x+150,y+10,56,
 fill('cobble',1072,624,416,432);fill('grass',1072,632,202,152);fill('pavement',1096,764,170,64);
 gc.fillStyle='#d1d2c0';for(let y=70;y<1080;y+=28){gc.fillRect(510,y,3,15);gc.fillRect(1022,y,3,15)}for(let x=50;x<1480;x+=32)gc.fillRect(x,542,18,3);
 for(let x of [480,992])for(let y of [480,592]){for(let j=0;j<6;j++){gc.fillStyle='#e1e0ce';gc.fillRect(x+j*10,y,6,16)}}
-const npc=Array.from({length:55},(_,i)=>({city:i%5,offset:random()*390,speed:10+random()*8,row:i%2,char:(i+1)%10}));
+const npc=Array.from({length:55},(_,i)=>({id:`${cities[i%5].id}-resident-${Math.floor(i/5)+1}`,ordinal:Math.floor(i/5)+1,city:i%5,offset:random()*390,speed:10+random()*8,row:i%2,char:(i+1)%10}));
+const mappedNpc=[...npc,...Array.from({length:55},(_,i)=>({...npc[i],mappedId:56+i}))];
+function residentId(a,city){if(a.mappedId)return `${cities[city].id}-resident-${a.mappedId}`;return `${cities[city].id}-resident-${a.ordinal+((a.city-city+5)%5)*11}`;}
 let vehicles=[];const oldArt=await image('assets/city-atlas.png');const oldAtlas=await fetch('assets/atlas.json').then(r=>r.json());
 function car(n,x,y,vx){const a=oldAtlas[n],w=a[2]*.65,h=a[3]*.65;/* Car art faces right; bus art faces left. Match facing to velocity. */const flip=n==='bus'?vx>0:vx<0;ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.drawImage(oldArt,...a,-w/2,0,w,h);ctx.restore()}
-function blocked(x,y){return x<40||y<50||x>1490||y>1090||obstacles.some(b=>x>b.x-5&&x<b.x+b.w+5&&y>b.y-3&&y<b.y+b.h+4)}
+function blocked(x,y){if(mappedScene&&!overview)return mappedScene.isBlocked(x,y);return x<40||y<50||x>1490||y>1090||obstacles.some(b=>x>b.x-5&&x<b.x+b.w+5&&y>b.y-3&&y<b.y+b.h+4)}
 function move(dx,dy){const before=[player.x,player.y];if(!blocked(player.x+dx,player.y))player.x+=dx;if(!blocked(player.x,player.y+dy))player.y+=dy;return Math.abs(before[0]-player.x)+Math.abs(before[1]-player.y)>.01;}
-function nearest(){let best=null,dist=65;for(const b of buildings){let d=Math.hypot(b.doorX-player.x,b.doorY-player.y);if(d<dist){dist=d;best=b}}return best;}
+function nearest(){let best=null,dist=65;for(const b of (mappedScene&&!overview?mappedScene.buildings:buildings)){let d=Math.hypot(b.doorX-player.x,b.doorY-player.y);if(d<dist){dist=d;best=b}}return best;}
 function refresh(){
+ updateMapUI();
  $('#storyStatus').textContent=year===0?'2021 baseline: both growth bars start at zero.':`${db.years[year]}: ${cities.filter((_,i)=>{let g=growth(i);return g.rent>g.income}).length} of 5 cities show rent growing faster than household income.`;$('#year').textContent=db.years[year];$('#time').value=year;$('#citySelect').value=current;$('#state').textContent=cities[current].state;$('#districtTitle').textContent=cities[current].name;$('#districtSubtitle').textContent=['A new perspective on the Golden City.','Big-city dreams. Real-world prices.','A growing city, a changing cost of living.','Find a home beside the lake.','A little rain. A different kind of city.'][current];$('#miniLabel').textContent=cities[current].name.toUpperCase();$('#discoveries').textContent=`${discovered.size} / 5 cities discovered`;if(inspected)showInspection(inspected,false);
 }
-function showInspection(b,record=true){inspected=b;if(record){discovered.add(b.city);$('#quest').hidden=true;refresh();}let c=cities[b.city],d=c.data[year],a=c.data[0],g=d.rent/a.rent-1,ig=d.income/a.income-1;$('#inspection').hidden=false;$('#inspection').innerHTML=`<button class="close" id="closeInspection" aria-label="Close building details">×</button><span class="type">${c.name.toUpperCase()} · HISTORICAL HOUSING DATA</span><h2>${b.title}</h2><span class="sub">Fictional building · ${c.name}, ${c.state}</span><div class="price">${money(d.rent)} <small>/ month</small></div><p class="disclaimer">City median gross rent, not this building’s asking price.<br>ACS ${d.period} five-year estimate.</p><div class="stats"><div><small>HOUSEHOLD INCOME</small><b>${money(d.income)}</b></div><div><small>ANNUAL RENT / INCOME</small><b>${pct(ratio(d))}</b></div><div><small>POPULATION</small><b>${d.population.toLocaleString()}</b></div><div><small>HOUSING VACANCY</small><b>${pct(d.vacantUnits/d.housingUnits)}</b></div></div><p class="trend">${year?`Since 2021: rent <b>+${pct(g)}</b>; household income <b>+${pct(ig)}</b>. Gap: <b>${((g-ig)*100).toFixed(1)} percentage points</b>.`:'This is the 2021 baseline. Move the time slider to see what changed.'}</p><button class="source-button" id="exactSources">View exact values & Census sources ↗</button>`;$('#closeInspection').onclick=()=>{inspected=null;$('#inspection').hidden=true};$('#exactSources').onclick=()=>showSources(b.city);}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function showInspection(b,record=true){if(!overview)b={...b,city:current};inspected=b;if(record){discovered.add(b.city);$('#quest').hidden=true;refresh();}let c=cities[b.city],d=c.data[year],a=c.data[0],g=d.rent/a.rent-1,ig=d.income/a.income-1;$('#inspection').hidden=false;$('#inspection').innerHTML=`<button class="close" id="closeInspection" aria-label="Close building details">×</button><span class="type">${c.name.toUpperCase()} · HISTORICAL HOUSING DATA</span><h2>${escapeHTML(b.title)}</h2><span class="sub">${b.mapped?'Neighborhood location · illustrative house':'Fictional building'} · ${c.name}, ${c.state}</span><div class="price">${money(d.rent)} <small>/ month</small></div><p class="disclaimer">City median gross rent, not this building’s asking price.<br>ACS ${d.period} five-year estimate.</p><div class="stats"><div><small>HOUSEHOLD INCOME</small><b>${money(d.income)}</b></div><div><small>ANNUAL RENT / INCOME</small><b>${pct(ratio(d))}</b></div><div><small>POPULATION</small><b>${d.population.toLocaleString()}</b></div><div><small>HOUSING VACANCY</small><b>${pct(d.vacantUnits/d.housingUnits)}</b></div></div><p class="trend">${year?`Since 2021: rent <b>+${pct(g)}</b>; household income <b>+${pct(ig)}</b>. Gap: <b>${((g-ig)*100).toFixed(1)} percentage points</b>.`:'This is the 2021 baseline. Move the time slider to see what changed.'}</p><button class="source-button" id="exactSources">View exact values & Census sources ↗</button>`;$('#closeInspection').onclick=()=>{inspected=null;$('#inspection').hidden=true};$('#exactSources').onclick=()=>showSources(b.city);}
 function showSources(i=current){let c=cities[i],d=c.data[year];$('#sourceDetails').innerHTML=`<p><b>${c.name} · ${d.period}</b><br>Median gross rent: ${money(d.rent)} ± ${money(d.rentMoe)}<br>Median household income: ${money(d.income)} ± ${money(d.incomeMoe)}<br>Margins of error at 90% confidence.</p>`;$('#sourceLinks').innerHTML=Object.entries(d.sources).map(([k,v])=>`<a target="_blank" rel="noreferrer" href="${v}">${k.toUpperCase()} ↗</a>`).join('');keys.clear();path=[];$('#sources').showModal();}
 function toast(s){$('#toast').textContent=s;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2600)}
-function travel(i){current=i;player.x=origins[i][0]+272;player.y=origins[i][1]+240;player.dir=0;path=[];keys.clear();inspected=null;$('#inspection').hidden=true;overview=false;$('#mapLegend').hidden=true;$('#locationBanner').hidden=false;cam.x=player.x;cam.y=player.y-28;cam.z=zoom;refresh();toast(`Welcome to ${cities[i].name}`)}
-function setMap(){overview=!overview;path=[];keys.clear();$('#mapLegend').hidden=!overview;$('#locationBanner').hidden=overview;$('#nearby').hidden=overview;if(overview){$('#inspection').hidden=true;$('#quest').hidden=true;}else if(inspected)$('#inspection').hidden=false;}
+function travel(i){mappedScene=null;delete canvas.dataset.place;if(!overview)streetPositions.set(current,{x:player.x,y:player.y});cityMap.close();selectedResident=null;delete canvas.dataset.selectedResident;current=i;player.x=origins[i][0]+272;player.y=origins[i][1]+240;player.dir=0;path=[];keys.clear();inspected=null;$('#inspection').hidden=true;overview=false;$('#mapLegend').hidden=true;$('#locationBanner').hidden=false;cam.x=player.x;cam.y=player.y-28;cam.z=zoom;refresh();}
+function setMap(){if(overview){if(cityMap.active)cityMap.enter();else enterStreet();}else showCity();}
 function ask(q){stopTimeline();const text=q.toLowerCase();let index=0,title,body,comparison=false,end=year===0?3:year;
- if(/afford|cheap|expensive|burden/.test(text)&&!/grow|rent.*rise|outpace|ahead|keep/.test(text)){let ranked=cities.map((c,i)=>({i,r:ratio(c.data[year])})).sort((a,b)=>a.r-b.r);index=/expensive|least|highest/.test(text)?ranked.at(-1).i:ranked[0].i;let d=cities[index].data[year];title=`${cities[index].name}, by the numbers.`;body=`Its ${d.year} rent-to-income ratio is <strong>${pct(ratio(d))}</strong>, the ${index===ranked[0].i?'lowest':'highest'} of these five cities. Rent: ${money(d.rent)}/month. Household income: ${money(d.income)}/year.`;
- }else if(/rent|income|wage|growth/.test(text)){comparison=true;let ranked=cities.map((c,i)=>({i,r:c.data[end].rent/c.data[0].rent-1,w:c.data[end].income/c.data[0].income-1})).filter(d=>d.r>d.w).sort((a,b)=>/fast/.test(text)?b.r-a.r:(b.r-b.w)-(a.r-a.w));let g=ranked[0];index=g.i;title=/fast/.test(text)?`${cities[index].name} saw rent rise fastest.`:`${cities[index].name} had the widest gap.`;let a=cities[index].data[0],b=cities[index].data[end];body=`2021 → ${db.years[end]}: rent rose <strong>${pct(g.r)}</strong> (${money(a.rent)} → ${money(b.rent)}), while household income grew <strong>${pct(g.w)}</strong> (${money(a.income)} → ${money(b.income)}). A <strong>${((g.r-g.w)*100).toFixed(1)} percentage-point gap</strong>.`;
+ if(/(?:lowest|highest|cheapest|most expensive) (?:monthly )?rent/.test(text)){let ranked=housingData.compareCities(db.years[year],{sortBy:'monthlyRent'}).map(row=>({i:cities.findIndex(c=>c.id===row.cityId),r:row.monthlyRent}));index=/highest|expensive/.test(text)?ranked.at(-1).i:ranked[0].i;title=`${cities[index].name}, by monthly rent.`;body=`Its ${db.years[year]} median gross rent is <strong>${money(cities[index].data[year].rent)}/month</strong>, the ${index===ranked[0].i?'lowest':'highest'} of these five cities.`;
+ }else if(/afford|cheap|expensive|burden/.test(text)&&!/grow|rent.*rise|outpace|ahead|keep/.test(text)){let ranked=housingData.compareCities(db.years[year],{sortBy:'rentToIncomeRatio'}).map(row=>({i:cities.findIndex(c=>c.id===row.cityId),r:row.rentToIncomeRatio}));index=/expensive|least|highest/.test(text)?ranked.at(-1).i:ranked[0].i;let d=cities[index].data[year];title=`${cities[index].name}, by the numbers.`;body=`Its ${d.year} rent-to-income ratio is <strong>${pct(ratio(d))}</strong>, the ${index===ranked[0].i?'lowest':'highest'} of these five cities. Rent: ${money(d.rent)}/month. Household income: ${money(d.income)}/year.`;
+ }else if(/rent|income|wage|growth/.test(text)){comparison=true;let ranked=housingData.compareCities(db.years[end],{sortBy:/fast/.test(text)?'rentGrowth':'gap'}).map(row=>({i:cities.findIndex(c=>c.id===row.cityId),r:row.rentGrowth,w:row.incomeGrowth}));let g=ranked[0];index=g.i;title=/fast/.test(text)?`${cities[index].name} saw rent rise fastest.`:`${cities[index].name} had the widest gap.`;let a=cities[index].data[0],b=cities[index].data[end];body=`2021 → ${db.years[end]}: rent rose <strong>${pct(g.r)}</strong> (${money(a.rent)} → ${money(b.rent)}), while household income grew <strong>${pct(g.w)}</strong> (${money(a.income)} → ${money(b.income)}). A <strong>${((g.r-g.w)*100).toFixed(1)} percentage-point gap</strong>.`;
  }else{title='Ask about the cost of living.';body='Try “Where did rent outpace income?”, “Where did rent rise fastest?” or “Which city is most affordable?”';index=null;}
  if(index!==null){if(comparison)year=end;travel(index);showInspection(buildings.find(b=>b.city===index&&b.title.includes('House'))||buildings.find(b=>b.city===index));$('#inspection').hidden=true;inspected=null;}
  $('#askform').hidden=true;$('#answer').hidden=false;$('#answer').innerHTML=`<button class="close" id="closeAnswer" aria-label="Close answer">×</button><b>${title}</b><p>${body}</p>${comparison?`<table class="ranking"><caption>2021 → ${db.years[end]} · growth</caption><thead><tr><th>City</th><th>Rent</th><th>Income</th><th>Gap¹</th></tr></thead><tbody>${cities.map((c,i)=>({c,i,...growth(i,end)})).sort((a,b)=>(b.rent-b.income)-(a.rent-a.income)).map(g=>`<tr class="${g.i===index?'selected':''}"><th>${g.c.name}</th><td>${g.rent.toFixed(1)}%</td><td>${g.income.toFixed(1)}%</td><td>${(g.rent-g.income).toFixed(1)}</td></tr>`).join('')}</tbody></table><p class="reading">¹ Percentage points. This compares city medians, not individual renters. It shows divergence, not its cause.</p>`:''}<small>ACS five-year estimates · overlapping periods · nominal dollars · statistical significance not tested. <a href="#" id="answerSources">Sources ↗</a></small>`;$('#closeAnswer').onclick=()=>$('#answer').hidden=true;$('#answerSources').onclick=e=>{e.preventDefault();showSources(index??current)};
@@ -68,19 +186,26 @@ function routeTo(x,y){const S=16,cols=W/S,rows=H/S,sx=Math.floor(player.x/S),sy=
 function character(c,character,x,y,dir,walking,t,scale=1){const f=walking?[1,0,1,2][Math.floor(t*8)%4]:1;c.drawImage(chars,(character%5)*48+f*16,Math.floor(character/5)*64+dir*16,16,16,Math.round(x-8*scale),Math.round(y-16*scale),16*scale,16*scale)}
 function rounded(c,x,y,w,h,r,fill){c.fillStyle=fill;c.beginPath();c.roundRect(x,y,w,h,r);c.fill()}
 function render(now){let dt=Math.min(.04,(now-last)/1000||0);last=now;if(ambient)clock+=dt;
- if(!overview&&!$('#sources').open){let dx=0,dy=0;for(const k of keys){if(k==='w'||k==='arrowup')dy-=1;if(k==='s'||k==='arrowdown')dy+=1;if(k==='a'||k==='arrowleft')dx-=1;if(k==='d'||k==='arrowright')dx+=1;}if(dx||dy)path=[];else if(path.length){let p=path[0],dist=Math.hypot(p.x-player.x,p.y-player.y);if(dist<3)path.shift();else{dx=(p.x-player.x)/dist;dy=(p.y-player.y)/dist;}}const len=Math.hypot(dx,dy);player.moving=false;if(len){let step=dt*(keys.has('shift')?110:68);player.moving=move(dx/len*step,dy/len*step);player.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?1:2):(dy<0?3:0);if(!player.moving&&path.length)path=[];}}
+ if(!overview&&!cityMap.transitioning&&!$('#sources').open){let dx=0,dy=0;for(const k of keys){if(k==='w'||k==='arrowup')dy-=1;if(k==='s'||k==='arrowdown')dy+=1;if(k==='a'||k==='arrowleft')dx-=1;if(k==='d'||k==='arrowright')dx+=1;}if(dx||dy)path=[];else if(path.length){let p=path[0],dist=Math.hypot(p.x-player.x,p.y-player.y);if(dist<3)path.shift();else{dx=(p.x-player.x)/dist;dy=(p.y-player.y)/dist;}}const len=Math.hypot(dx,dy);player.moving=false;if(len){let step=dt*(keys.has('shift')?110:68);player.moving=move(dx/len*step,dy/len*step);player.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?1:2):(dy<0?3:0);if(!player.moving&&path.length)path=[];}}
  else player.moving=false;
- let nc=origins.findIndex(([x,y])=>player.x>=x&&player.x<x+432&&player.y>=y&&player.y<y+432);if(nc>=0&&nc!==current){current=nc;refresh();}
+ // All street blocks belong to the selected city's illustrative world.
  const candidate=overview?null:nearest();if(candidate!==near){near=candidate;$('#nearby').hidden=!near;if(near)$('#nearbyName').textContent=near.title;}
  const w=canvas.clientWidth,h=canvas.clientHeight,dpr=Math.min(devicePixelRatio,2);if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr)}
- const top=$('#story').getBoundingClientRect().bottom,usable=Math.max(180,h-top-64);const dest=overview?{x:W/2,y:H/2,z:Math.min(w/(W+60),usable/(H+60))}:{x:player.x,y:player.y-25,z:w<650?zoom*.82:zoom};let ease=reduced?1:Math.min(1,dt*7);['x','y','z'].forEach(k=>cam[k]+=(dest[k]-cam[k])*ease);
- ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;ctx.fillStyle='#68816c';ctx.fillRect(0,0,w,h);const ox=Math.round(w/2-cam.x*cam.z),oy=Math.round(top+usable*.5-cam.y*cam.z);render.transform={ox,oy,scale:cam.z};ctx.translate(ox,oy);ctx.scale(cam.z,cam.z);ctx.drawImage(ground,0,0);
- let objs=props.map(p=>({z:p.z,draw:()=>sprite(ctx,p.n,p.x,p.y)}));
- for(const b of buildings)objs.push({z:b.foot,draw:()=>{ctx.fillStyle='#26332a20';ctx.fillRect(b.x+8,b.y+12,b.w,b.h);sprite(ctx,b.n,b.x,b.y);if(overview){ctx.strokeStyle=gapColor(b.city);ctx.lineWidth=3/cam.z;ctx.strokeRect(b.x-3,b.y-3,b.w+6,b.h+6)}if(!overview){ctx.fillStyle='#202e2aee';ctx.fillRect(b.doorX-37,b.foot-22,74,16);ctx.fillStyle=gapColor(b.city);ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(money(cities[b.city].data[year].rent)+'/mo',b.doorX,b.foot-10)}if(b===near&&!overview){ctx.fillStyle='#e3cc7b';ctx.fillRect(b.doorX-7,b.foot+2,14,2);ctx.fillStyle='#fffbe2';ctx.fillRect(b.doorX-2,b.foot+6,4,2)}}});
- for(const a of npc){let [x,y]=origins[a.city],walk=(a.offset+clock*a.speed)%740,forward=walk<370,xx=x+12+(forward?walk:740-walk),yy=y+(a.row?430:235);objs.push({z:yy,draw:()=>character(ctx,a.char,xx,yy,forward?2:1,ambient,clock+a.offset)});}
+ const top=document.querySelector('.hud').getBoundingClientRect().bottom,usable=Math.max(180,h-top);
+ $('#game').style.setProperty('--map-top',`${top+9}px`);
+ canvas.dataset.view=$('#game').dataset.view;canvas.dataset.playerX=player.x.toFixed(1);canvas.dataset.playerY=player.y.toFixed(1);
+ if(cityMap.active){ctx.setTransform(dpr,0,0,dpr,0,0);cityMap.draw(ctx,w,h,top,dt,now);if(sceneListeners.size){const snapshot=sceneSnapshot();sceneListeners.forEach(fn=>fn(snapshot));}requestAnimationFrame(render);return;}
+ residentHits=[];const dest=overview?{x:W/2,y:H/2,z:Math.min(w/(W+60),usable/(H+60))}:streetCamera({width:w,height:usable,worldWidth:W,worldHeight:H,x:player.x,y:player.y-25,zoom:w<650?zoom*.82:zoom});let ease=reduced?1:Math.min(1,dt*7);['x','y','z'].forEach(k=>cam[k]+=(dest[k]-cam[k])*ease);if(!overview)Object.assign(cam,streetCamera({width:w,height:usable,worldWidth:W,worldHeight:H,x:cam.x,y:cam.y,zoom:cam.z}));
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;ctx.fillStyle='#68816c';ctx.fillRect(0,0,w,h);const ox=Math.round(w/2-cam.x*cam.z),oy=Math.round(top+usable*.5-cam.y*cam.z);render.transform={ox,oy,scale:cam.z};ctx.translate(ox,oy);ctx.scale(cam.z,cam.z);ctx.save();ctx.drawImage(mappedScene&&!overview?mappedScene.ground:ground,0,0);
+ let objs=(mappedScene&&!overview?[]:props).map(p=>({z:p.z,draw:()=>sprite(ctx,p.n,p.x,p.y)}));
+ for(const b of (mappedScene&&!overview?[]:buildings))objs.push({z:b.foot,draw:()=>{ctx.fillStyle='#26332a20';ctx.fillRect(b.x+8,b.y+12,b.w,b.h);sprite(ctx,b.n,b.x,b.y);if(overview){ctx.strokeStyle=gapColor(b.city);ctx.lineWidth=3/cam.z;ctx.strokeRect(b.x-3,b.y-3,b.w+6,b.h+6)}if(!overview){ctx.fillStyle='#202e2aee';ctx.fillRect(b.doorX-37,b.foot-22,74,16);ctx.fillStyle=gapColor(current);ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(money(cities[current].data[year].rent)+'/mo',b.doorX,b.foot-10)}if(b===near&&!overview){ctx.fillStyle='#e3cc7b';ctx.fillRect(b.doorX-7,b.foot+2,14,2);ctx.fillStyle='#fffbe2';ctx.fillRect(b.doorX-2,b.foot+6,4,2)}}});
+ if(mappedScene&&!overview){for(const b of mappedScene.buildings)objs.push({z:b.foot,draw:()=>{ctx.fillStyle='#26332a25';ctx.fillRect(b.x+5,b.foot-14,b.w,18);sprite(ctx,b.n,b.x,b.y,b.scale);}});}
+ if(mappedScene&&!overview){mappedNpc.forEach((a,i)=>{const walker=mappedScene.residents[i];if(!walker)return;const {x,y,dir}=walkingPosition(walker.route,clock,walker.speed,walker.phase),id=residentId(a,current);residentHits.push({id,x,y,city:current});objs.push({z:y,draw:()=>{if(selectedResident===id){ctx.strokeStyle='#ffec9c';ctx.strokeRect(x-10,y-20,20,23);}character(ctx,a.char,x,y,dir,ambient,clock+a.offset);}});});canvas.dataset.residentCount=mappedScene.residents.length;}
+
+ for(const a of (mappedScene&&!overview?[]:npc)){const id=overview?a.id:residentId(a,current);let [x,y]=origins[a.city],walk=(a.offset+clock*a.speed)%740,forward=walk<370,xx=x+12+(forward?walk:740-walk),yy=y+(a.row?430:235);residentHits.push({id,x:xx,y:yy,city:current});objs.push({z:yy,draw:()=>{if(selectedResident===id){ctx.strokeStyle='#ffec9c';ctx.lineWidth=1.5;ctx.strokeRect(xx-10,yy-20,20,23);}character(ctx,a.char,xx,yy,forward?2:1,ambient,clock+a.offset)}});}
  objs.push({z:player.y,draw:()=>{ctx.fillStyle='#25332633';ctx.beginPath();ctx.ellipse(player.x,player.y,7,3,0,0,Math.PI*2);ctx.fill();character(ctx,player.char,player.x,player.y,player.dir,player.moving,now/1000,1.15);if(!overview){ctx.fillStyle='#fff9d8';ctx.beginPath();ctx.moveTo(player.x-3,player.y-27);ctx.lineTo(player.x+3,player.y-27);ctx.lineTo(player.x,player.y-23);ctx.fill();}}});
  objs.sort((a,b)=>a.z-b.z);for(const o of objs)o.draw();
- for(let i=0;i<7;i++){const vx=i%2?23:-19,x=(i*231+clock*vx+100000)%1450+40;car(i===3?'bus':'car',x,i%2?557:514,vx)}
+ for(let i=0;i<(mappedScene&&!overview?0:7);i++){const vx=i%2?23:-19,x=(i*231+clock*vx+100000)%1450+40;car(i===3?'bus':'car',x,i%2?557:514,vx)}
  if(path.length&&!overview){const p=path.at(-1);ctx.strokeStyle='#fbf2c9';ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.stroke();}
  // Data signboards sit in the city; a fixed 0–30% scale is shared by both metrics and all years.
  origins.forEach(([x,y],i)=>{if(!overview)return;const g=growth(i),sx=x+18,sy=y+255;
@@ -89,20 +214,43 @@ function render(now){let dt=Math.min(.04,(now-last)/1000||0);last=now;if(ambient
  });
  if(overview){ctx.fillStyle='#fff1a8';ctx.beginPath();ctx.arc(player.x,player.y,9,0,Math.PI*2);ctx.fill();}
 
- drawMini();$('#position').textContent=`${Math.round(player.x)}, ${Math.round(player.y)}`;canvas.dataset.playerX=player.x.toFixed(1);canvas.dataset.playerY=player.y.toFixed(1);canvas.dataset.nearby=near?.title||'';requestAnimationFrame(render);
+ ctx.restore();ctx.setTransform(dpr,0,0,dpr,0,0);cityMap.draw(ctx,w,h,top,dt,now);
+ drawMini();$('#position').textContent=`${Math.round(player.x)}, ${Math.round(player.y)}`;canvas.dataset.playerX=player.x.toFixed(1);canvas.dataset.playerY=player.y.toFixed(1);canvas.dataset.nearby=near?.title||'';if(sceneListeners.size){const snapshot=sceneSnapshot();sceneListeners.forEach(fn=>fn(snapshot));}requestAnimationFrame(render);
 }
 function drawMini(){mc.imageSmoothingEnabled=false;mc.fillStyle='#a6b291';mc.fillRect(0,0,168,112);const sx=168/W,sy=112/H;mc.fillStyle='#7b897b';mc.fillRect(480*sx,0,64*sx,112);mc.fillRect(992*sx,0,64*sx,112);mc.fillRect(0,496*sy,168,96*sy);for(const b of buildings){mc.fillStyle=color(cities[b.city].data[year]);mc.fillRect(b.x*sx,b.y*sy,b.w*sx,b.h*sy)}mc.fillStyle='#fff7d2';mc.beginPath();mc.arc(player.x*sx,player.y*sy,3,0,Math.PI*2);mc.fill();mc.strokeStyle='#49623d';mc.stroke();}
-$('#citySelect').innerHTML=cities.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');$('#citySelect').onchange=e=>travel(+e.target.value);
+$('#citySelect').innerHTML=cities.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');$('#citySelect').onchange=e=>{const i=+e.target.value;if(overview){current=i;showCity();}else travel(i);};
 function inspect(){if(near)showInspection(near);else toast('Walk closer to a building’s front door.');}
 const movement=['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright','shift'];
-window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)||$('#sources').open)return;let k=e.key.toLowerCase();if(movement.includes(k)){e.preventDefault();keys.add(k);if(overview)setMap();if(!e.repeat){let dx=['a','arrowleft'].includes(k)?-2:['d','arrowright'].includes(k)?2:0,dy=['w','arrowup'].includes(k)?-2:['s','arrowdown'].includes(k)?2:0;move(dx,dy)}}else if(k==='e'){inspect()}else if(k==='m'){setMap()}else if(k==='/'){e.preventDefault();openAsk()}else if(k==='escape'){inspected=null;$('#inspection').hidden=true;$('#askform').hidden=true;$('#answer').hidden=true;if(overview)setMap()}});
+window.addEventListener('keydown',e=>{if(cityMap.transitioning){e.preventDefault();if(e.key==='Escape')cityMap.cancelTransition();return;}if(e.target.closest?.('.rs-panel,.nc-shell,.nc-demo,.nc-transcript')||['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName)||$('#sources').open)return;let k=e.key.toLowerCase();if(k==='enter'&&cityMap.active){e.preventDefault();cityMap.enter();return;}if(k==='+'||k==='='){e.preventDefault();zoomMap(1);return;}if(k==='-'){e.preventDefault();zoomMap(-1);return;}if(movement.includes(k)){e.preventDefault();if(cityMap.active){cityMap.pan(['a','arrowleft'].includes(k)?35:['d','arrowright'].includes(k)?-35:0,['w','arrowup'].includes(k)?35:['s','arrowdown'].includes(k)?-35:0);return;}keys.add(k);if(overview)setMap();if(!e.repeat){let dx=['a','arrowleft'].includes(k)?-2:['d','arrowright'].includes(k)?2:0,dy=['w','arrowup'].includes(k)?-2:['s','arrowdown'].includes(k)?2:0;move(dx,dy)}}else if(k==='e'){inspect()}else if(k==='m'){setMap()}else if(k==='/'){e.preventDefault();openAsk()}else if(k==='escape'){inspected=null;$('#inspection').hidden=true;$('#askform').hidden=true;$('#answer').hidden=true;if(!overview)showCity()}});
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear());document.addEventListener('visibilitychange',()=>keys.clear());
 for(const button of document.querySelectorAll('[data-dir]')){const k={up:'w',down:'s',left:'a',right:'d'}[button.dataset.dir];button.onpointerdown=e=>{e.preventDefault();keys.add(k);path=[];move(k==='a'?-3:k==='d'?3:0,k==='w'?-3:k==='s'?3:0);button.setPointerCapture(e.pointerId);if(overview)setMap()};button.onpointerup=button.onpointercancel=()=>keys.delete(k);}
-canvas.onpointerdown=e=>{canvas.focus();const rect=canvas.getBoundingClientRect(),t=render.transform,x=(e.clientX-rect.left-t.ox)/t.scale,y=(e.clientY-rect.top-t.oy)/t.scale;if(overview){let i=origins.findIndex(([px,py])=>x>=px&&x<px+432&&y>=py&&y<py+432);if(i>=0)travel(i);return}const b=buildings.find(b=>x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.foot);if(b){if(b===near)inspect();else{routeTo(b.doorX,b.doorY+10);toast('Walking to '+b.title)}}else routeTo(x,y)};
-mini.onclick=()=>setMap();$('#inspect').onclick=inspect;$('#mapToggle').onclick=setMap;$('#recenter').onclick=()=>travel(current);$('#zoomIn').onclick=()=>zoom=Math.min(3.2,zoom+.25);$('#zoomOut').onclick=()=>zoom=Math.max(.7,zoom-.25);$('#ambient').onclick=()=>{ambient=!ambient;$('#ambient').textContent=ambient?'Ⅱ':'▶';$('#ambient').setAttribute('aria-label',ambient?'Pause ambient animation':'Resume ambient animation')};
+let pointerStart=null,dragged=false,pinchDistance=null,wheelAt=0;const pointers=new Map();
+canvas.onpointerdown=e=>{canvas.focus();canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});pointerStart={x:e.clientX,y:e.clientY};dragged=false;};
+canvas.onpointermove=e=>{
+ if(!pointers.has(e.pointerId))return;const previous=pointers.get(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pointers.size===2){dragged=true;const [a,b]=[...pointers.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);if(pinchDistance&&Math.abs(distance-pinchDistance)>22){zoomMap(distance>pinchDistance?1:-1);pinchDistance=distance;}else if(!pinchDistance)pinchDistance=distance;return;}
+ if(pointerStart&&Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)>5)dragged=true;
+ if(cityMap.active&&dragged)cityMap.pan(e.clientX-previous.x,e.clientY-previous.y);
+};
+canvas.onpointerup=e=>{
+ pointers.delete(e.pointerId);pinchDistance=null;if(dragged||!pointerStart){if(!pointers.size)pointerStart=null;return;}pointerStart=null;
+ const rect=canvas.getBoundingClientRect(),sx=e.clientX-rect.left,sy=e.clientY-rect.top;
+ if(cityMap.active){cityMap.click(sx,sy);return;}
+ const t=render.transform;if(!t)return;const x=(sx-t.ox)/t.scale,y=(sy-t.oy)/t.scale;
+ if(overview){const i=origins.findIndex(([px,py])=>x>=px&&x<px+432&&y>=py&&y<py+432);if(i>=0){current=i;if(i===0)showCity();else enterStreet();}return;}
+ const resident=residentHits.filter(a=>a.city===current).sort((a,b)=>Math.hypot(a.x-x,a.y-8-y)-Math.hypot(b.x-x,b.y-8-y)).find(a=>Math.abs(a.x-x)<12&&Math.abs(a.y-8-y)<15);
+ if(resident){selectedResident=resident.id;path=[];keys.clear();const detail={residentId:resident.id,selection:selection.get()};residentEvents.dispatchEvent(new CustomEvent('select',{detail}));window.dispatchEvent(new CustomEvent('datascape:resident-select',{detail}));canvas.dataset.selectedResident=resident.id;toast(`Resident selected · ${resident.id}`);return;}
+ const b=(mappedScene&&!overview?mappedScene.buildings:buildings).find(b=>x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.foot);
+ if(b){if(b===near)inspect();else{routeTo(b.doorX,b.doorY+10);toast('Walking to '+b.title)}}else routeTo(x,y);
+};
+canvas.onpointercancel=e=>{pointers.delete(e.pointerId);pointerStart=null;pinchDistance=null;dragged=true;};
+canvas.addEventListener('wheel',e=>{e.preventDefault();if(performance.now()-wheelAt<140||Math.abs(e.deltaY)<2)return;wheelAt=performance.now();zoomMap(e.deltaY<0?1:-1);},{passive:false});
+$('#cityView').onclick=showCity;$('#compareView').onclick=showComparison;$('#enterStreet').onclick=()=>cityMap.enter();
+
+mini.onclick=()=>setMap();$('#inspect').onclick=inspect;$('#mapToggle').onclick=setMap;$('#recenter').onclick=()=>{if(cityMap.active)cityMap.reset();else if(mappedScene){[player.x,player.y]=mappedScene.spawn;path=[];}else travel(current);};$('#zoomIn').onclick=()=>zoomMap(1);$('#zoomOut').onclick=()=>zoomMap(-1);$('#ambient').onclick=()=>{ambient=!ambient;$('#ambient').textContent=ambient?'Ⅱ':'▶';$('#ambient').setAttribute('aria-label',ambient?'Pause ambient animation':'Resume ambient animation')};
 function portrait(){let c=$('#portrait').getContext('2d');c.clearRect(0,0,48,48);c.imageSmoothingEnabled=false;character(c,player.char,24,42,0,false,0,2.4)}$('#avatarButton').onclick=()=>{player.char=(player.char+1)%10;portrait();toast('A new face in the neighborhood.')};
 $('#time').oninput=e=>{stopTimeline();year=+e.target.value;$('#answer').hidden=true;refresh()};$('#play').onclick=()=>timer?stopTimeline():playStory();$('#watchStory').onclick=playStory;$('#revealStory').onclick=revealStory;
 
 function openAsk(){$('#askform').hidden=false;$('#answer').hidden=true;keys.clear();path=[];$('#question').focus()}$('#askToggle').onclick=openAsk;$('#closeAsk').onclick=()=>$('#askform').hidden=true;$('#askform').onsubmit=e=>{e.preventDefault();if($('#question').value.trim())ask($('#question').value)};document.querySelectorAll('[data-question]').forEach(b=>b.onclick=()=>{$('#question').value=b.dataset.question;ask(b.dataset.question)});
 $('#about').onclick=()=>showSources();$('#closeSources').onclick=()=>$('#sources').close();$('#closeQuest').onclick=()=>$('#quest').hidden=true;
-$('#mapLegend').hidden=false;refresh();portrait();$('#loading').hidden=true;requestAnimationFrame(render);
+cityMap.open();$('#mapLegend').hidden=false;refresh();portrait();$('#loading').hidden=true;requestAnimationFrame(render);

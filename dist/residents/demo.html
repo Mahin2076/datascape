@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resident stories — module demo</title>
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; height: 100%; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; color: #273d34; background: #68816c; }
+  #stage { position: relative; height: 100dvh; overflow: hidden; }
+  .bar { position: absolute; top: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 14px; background: #edede3; border-bottom: 1px solid #6d7867; }
+  .bar b { margin-right: 8px; }
+  .people { position: absolute; top: 70px; left: 14px; display: grid; gap: 6px; max-width: 260px; }
+  .people button { font: inherit; text-align: left; padding: 8px 10px; background: #fffef2; border: 1px solid #505c4f; cursor: pointer; }
+  .people button small { display: block; color: #66705f; }
+  .note { position: absolute; left: 14px; bottom: 12px; right: 14px; color: #fffce4; font-size: 11px; }
+  :focus-visible { outline: 3px solid #dcb461; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main id="stage">
+  <div class="bar">
+    <b>resident-stories demo</b>
+    <label>City <select id="city"></select></label>
+    <label>Year <select id="year"><option>2021</option><option>2022</option><option>2023</option><option selected>2024</option></select></label>
+    <span id="selection" aria-live="polite"></span>
+  </div>
+  <nav class="people" id="people" aria-label="Residents (stands in for clicking a sprite on the map)"></nav>
+  <p class="note">Module harness for Teammate 1’s branch. The buttons stand in for map clicks (<code>onResidentSelect</code>); housing data comes from a dev stand-in of the data contract, not the final data module.</p>
+</main>
+<script type="module">
+  import { createResidentStories, listResidents, CITY_NAMES } from './index.js';
+  import { createContractStub } from './dev/contract-stub.js';
+
+  const params = new URLSearchParams(location.search);
+  let selection = { cityId: params.get('city') || 'sf', year: Number(params.get('year') || 2024), scenario: { rentChangePct: 0, incomeChangePct: 0 } };
+  const stage = document.getElementById('stage');
+  const citySel = document.getElementById('city');
+  const yearSel = document.getElementById('year');
+  const people = document.getElementById('people');
+  const out = document.getElementById('selection');
+
+  const stories = createResidentStories({
+    root: stage,
+    data: createContractStub(),
+    initialSelection: selection,
+    onSelectionChange: (s) => { selection = s; show(); },
+  });
+  window.residentStories = stories; // for browser tests
+
+  function show() {
+    out.textContent = JSON.stringify(selection);
+  }
+  function renderPeople() {
+    people.replaceChildren(...listResidents(selection.cityId).map((r) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.residentId = r.id;
+      b.append(r.name);
+      const s = document.createElement('small');
+      s.textContent = r.building;
+      b.append(s);
+      b.addEventListener('click', () => stories.onResidentSelect(r.id));
+      return b;
+    }));
+  }
+  citySel.append(...Object.entries(CITY_NAMES).map(([id, name]) => new Option(name, id, false, id === selection.cityId)));
+  yearSel.value = String(selection.year);
+  citySel.addEventListener('change', () => { selection = { ...selection, cityId: citySel.value }; stories.setSelection(selection); renderPeople(); show(); });
+  yearSel.addEventListener('change', () => { selection = { ...selection, year: Number(yearSel.value) }; stories.setSelection(selection); show(); });
+  renderPeople();
+  show();
+  if (params.get('open')) stories.onResidentSelect(params.get('open'));
+</script>
+</body>
+</html>
