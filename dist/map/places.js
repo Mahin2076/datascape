@@ -1,3 +1,4 @@
+import {createWalkingRoutes,assignWalkingRoutes} from './residents.js';
 // OSM geometry owns positions; artwork only supplies the visual treatment.
 export const WIDTH=1536,HEIGHT=1152,SCALE=2;
 const METERS=111320;
@@ -123,6 +124,6 @@ export function buildPlaceScene(features,center,{patterns,sports,sprite,atlas}){
  const isBlocked=(x,y)=>x<16||y<16||x>WIDTH-16||y>HEIGHT-16||blockedShapes.some(rings=>rings.reduce((v,r)=>v!==contains([x,y],r),false));
  let spawn=[WIDTH/2,HEIGHT/2];if(isBlocked(...spawn)){outer:for(let radius=16;radius<600;radius+=16)for(let angle=0;angle<Math.PI*2;angle+=.2){let p=[WIDTH/2+Math.cos(angle)*radius,HEIGHT/2+Math.sin(angle)*radius];if(!isBlocked(...p)){spawn=p;break outer;}}}
  if(isBlocked(...spawn))throw Error('No walkable ground at this location');
- const residents=local.filter(f=>f.type==='road').flatMap(f=>f.points).filter(([x,y])=>x>32&&y>32&&x<WIDTH-32&&y<HEIGHT-32&&!isBlocked(x,y));
+ const residents=assignWalkingRoutes(createWalkingRoutes(local,isBlocked),110);
  return {ground,buildings,features:local,center,spawn,isBlocked,residents,projection:projection(center)};
 }

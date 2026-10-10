@@ -1,3 +1,4 @@
+import {walkingPosition} from './map/residents.js';
 import {createPlaceLoader,buildPlaceScene} from './map/places.js';
 import { streetCamera } from './map/geometry.js';
 import { createCityOverview } from './map/city-overview.js';
@@ -28,7 +29,7 @@ function emitSelection(){
 export const mapIntegration = Object.freeze({
  selection,
  onResidentSelect(callback){const handler=e=>callback(e.detail.residentId,e.detail);residentEvents.addEventListener('select',handler);return()=>residentEvents.removeEventListener('select',handler);},
- getResidents(){return cities.flatMap((c,i)=>npc.map(a=>({residentId:residentId(a,i),cityId:c.id,spriteIndex:a.char})));},
+ getResidents(){return cities.flatMap((c,i)=>(i===0?mappedNpc:npc).map(a=>({residentId:residentId(a,i),cityId:c.id,spriteIndex:a.char})));},
  getSelectedResident(){return selectedResident;}
 });
 selection.subscribe(value=>{
@@ -120,7 +121,8 @@ fill('cobble',1072,624,416,432);fill('grass',1072,632,202,152);fill('pavement',1
 gc.fillStyle='#d1d2c0';for(let y=70;y<1080;y+=28){gc.fillRect(510,y,3,15);gc.fillRect(1022,y,3,15)}for(let x=50;x<1480;x+=32)gc.fillRect(x,542,18,3);
 for(let x of [480,992])for(let y of [480,592]){for(let j=0;j<6;j++){gc.fillStyle='#e1e0ce';gc.fillRect(x+j*10,y,6,16)}}
 const npc=Array.from({length:55},(_,i)=>({id:`${cities[i%5].id}-resident-${Math.floor(i/5)+1}`,ordinal:Math.floor(i/5)+1,city:i%5,offset:random()*390,speed:10+random()*8,row:i%2,char:(i+1)%10}));
-function residentId(a,city){return `${cities[city].id}-resident-${a.ordinal+((a.city-city+5)%5)*11}`;}
+const mappedNpc=[...npc,...Array.from({length:55},(_,i)=>({...npc[i],mappedId:56+i}))];
+function residentId(a,city){if(a.mappedId)return `${cities[city].id}-resident-${a.mappedId}`;return `${cities[city].id}-resident-${a.ordinal+((a.city-city+5)%5)*11}`;}
 let vehicles=[];const oldArt=await image('assets/city-atlas.png');const oldAtlas=await fetch('assets/atlas.json').then(r=>r.json());
 function car(n,x,y,vx){const a=oldAtlas[n],w=a[2]*.65,h=a[3]*.65;/* Car art faces right; bus art faces left. Match facing to velocity. */const flip=n==='bus'?vx>0:vx<0;ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.drawImage(oldArt,...a,-w/2,0,w,h);ctx.restore()}
 function blocked(x,y){if(mappedScene&&!overview)return mappedScene.isBlocked(x,y);return x<40||y<50||x>1490||y>1090||obstacles.some(b=>x>b.x-5&&x<b.x+b.w+5&&y>b.y-3&&y<b.y+b.h+4)}
@@ -162,7 +164,8 @@ function render(now){let dt=Math.min(.04,(now-last)/1000||0);last=now;if(ambient
  let objs=(mappedScene&&!overview?[]:props).map(p=>({z:p.z,draw:()=>sprite(ctx,p.n,p.x,p.y)}));
  for(const b of (mappedScene&&!overview?[]:buildings))objs.push({z:b.foot,draw:()=>{ctx.fillStyle='#26332a20';ctx.fillRect(b.x+8,b.y+12,b.w,b.h);sprite(ctx,b.n,b.x,b.y);if(overview){ctx.strokeStyle=gapColor(b.city);ctx.lineWidth=3/cam.z;ctx.strokeRect(b.x-3,b.y-3,b.w+6,b.h+6)}if(!overview){ctx.fillStyle='#202e2aee';ctx.fillRect(b.doorX-37,b.foot-22,74,16);ctx.fillStyle=gapColor(current);ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(money(cities[current].data[year].rent)+'/mo',b.doorX,b.foot-10)}if(b===near&&!overview){ctx.fillStyle='#e3cc7b';ctx.fillRect(b.doorX-7,b.foot+2,14,2);ctx.fillStyle='#fffbe2';ctx.fillRect(b.doorX-2,b.foot+6,4,2)}}});
  if(mappedScene&&!overview){for(const b of mappedScene.buildings)objs.push({z:b.foot,draw:()=>{ctx.fillStyle='#26332a25';ctx.fillRect(b.x+5,b.foot-14,b.w,18);sprite(ctx,b.n,b.x,b.y,b.scale);}});}
- if(mappedScene&&!overview){npc.forEach((a,i)=>{const p=mappedScene.residents[i*7%mappedScene.residents.length];if(!p)return;const id=residentId(a,current),[x,y]=p;residentHits.push({id,x,y,city:current});objs.push({z:y,draw:()=>{if(selectedResident===id){ctx.strokeStyle='#ffec9c';ctx.strokeRect(x-10,y-20,20,23);}character(ctx,a.char,x,y,0,false,clock);}});});}
+ if(mappedScene&&!overview){mappedNpc.forEach((a,i)=>{const walker=mappedScene.residents[i];if(!walker)return;const {x,y,dir}=walkingPosition(walker.route,clock,walker.speed,walker.phase),id=residentId(a,current);residentHits.push({id,x,y,city:current});objs.push({z:y,draw:()=>{if(selectedResident===id){ctx.strokeStyle='#ffec9c';ctx.strokeRect(x-10,y-20,20,23);}character(ctx,a.char,x,y,dir,ambient,clock+a.offset);}});});canvas.dataset.residentCount=mappedScene.residents.length;}
+
  for(const a of (mappedScene&&!overview?[]:npc)){const id=overview?a.id:residentId(a,current);let [x,y]=origins[a.city],walk=(a.offset+clock*a.speed)%740,forward=walk<370,xx=x+12+(forward?walk:740-walk),yy=y+(a.row?430:235);residentHits.push({id,x:xx,y:yy,city:current});objs.push({z:yy,draw:()=>{if(selectedResident===id){ctx.strokeStyle='#ffec9c';ctx.lineWidth=1.5;ctx.strokeRect(xx-10,yy-20,20,23);}character(ctx,a.char,xx,yy,forward?2:1,ambient,clock+a.offset)}});}
  objs.push({z:player.y,draw:()=>{ctx.fillStyle='#25332633';ctx.beginPath();ctx.ellipse(player.x,player.y,7,3,0,0,Math.PI*2);ctx.fill();character(ctx,player.char,player.x,player.y,player.dir,player.moving,now/1000,1.15);if(!overview){ctx.fillStyle='#fff9d8';ctx.beginPath();ctx.moveTo(player.x-3,player.y-27);ctx.lineTo(player.x+3,player.y-27);ctx.lineTo(player.x,player.y-23);ctx.fill();}}});
  objs.sort((a,b)=>a.z-b.z);for(const o of objs)o.draw();

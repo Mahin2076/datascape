@@ -85,3 +85,7 @@ Run `node --test tests/*.test.mjs`. Tests cover coordinate round trips, field cl
 ### Illustrative house placement
 
 Building geometry now supplies neighborhood placement hints only. Complete LimeZu house, townhouse and apartment sprites use a consistent 0.7 scale instead of clipped footprint skins. Dense footprints are thinned and placements shifted locally to leave breathing room. Buildings are drawn in depth order with residents; collision and inspection follow the displayed house base. Real roads, parks and sports-field geometry remain mapped.
+
+### Walking residents
+
+Mapped SF scenes now have up to 110 residents, distributed by walkable route length. `residents.js` builds continuous routes along mapped roads/paths, splits at collision boundaries, and excludes private routes and roads tagged against pedestrian access. Residents walk at varied speeds/phases, follow bends, and reverse continuously at the ends. Ambient pause/reduced-motion keeps their positions still. The first 55 selection IDs are preserved; SF adds `sf-resident-56` through `sf-resident-110`, exposed by `mapIntegration.getResidents()`. Other city/comparison populations are unchanged. No routes means no spawned walkers, rather than placing them in obstacles.
