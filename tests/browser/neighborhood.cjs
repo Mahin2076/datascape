@@ -33,7 +33,7 @@ async function mockReply(route){
       const response=await responsePromise;assert.equal(response.status(),200);const result=await response.json();
       await page.waitForSelector('.nc-shell[data-method=ai]:not([aria-busy])');
       assert.equal(await page.locator('.nc-bubble').count(),result.replies.length);
-      assert.ok(result.replies.length>0);assert.equal(await page.locator('.nc-reply').count(),result.replies.length);
+      assert.ok(result.replies.length>0);assert.equal(await page.locator('.nc-reply:not(.nc-research)').count(),result.replies.length);
       const boxes=await page.locator('.nc-bubble.is-speaking').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().toJSON()));
       for(let a=0;a<boxes.length;a++)for(let b=a+1;b<boxes.length;b++)assert.ok(boxes[a].right<=boxes[b].left||boxes[b].right<=boxes[a].left||boxes[a].bottom<=boxes[b].top||boxes[b].bottom<=boxes[a].top,'Speech bubbles must not overlap');
       await page.screenshot({path:`test-results/neighborhood-${width}.png`});

@@ -12,7 +12,7 @@ export function mountNeighborhood({root,map}){
   if(card.hidden){active=null;return;}
   const p=nearest.property;
   if(active!==nearest.id){active=nearest.id;card.replaceChildren();
-   for(const [tag,cls,text] of [['small','rh-kicker','ILLUSTRATIVE PROPERTY · RINCON HILL'],['h2','',p.name],['strong','rh-price',`$${p.price.toLocaleString()} `],['p','rh-spec',`${p.beds||'Studio'}${p.beds?' bed':''} · ${p.baths} bath · ${p.sqft.toLocaleString()} sq ft`],['p','rh-rent',`Rent $${p.rent.toLocaleString()}/mo · HOA $${p.hoa}/mo`],['p','rh-feature',p.feature],['small','rh-disclosure','Demo property · simulated price']]){const el=document.createElement(tag);el.className=cls;el.textContent=text;card.append(el);}
+   for(const [tag,cls,text] of [['small','rh-kicker','ILLUSTRATIVE PROPERTY · RINCON HILL'],['h2','',p.name],['p','rh-address',p.address||'Street address unavailable'],['strong','rh-price',`$${p.price.toLocaleString()} `],['p','rh-spec',`${p.beds||'Studio'}${p.beds?' bed':''} · ${p.baths} bath · ${p.sqft.toLocaleString()} sq ft`],['p','rh-rent',`Rent $${p.rent.toLocaleString()}/mo · HOA $${p.hoa}/mo`],['p','rh-feature',p.feature],['small','rh-disclosure','Demo property · simulated price']]){const el=document.createElement(tag);el.className=cls;el.textContent=text;card.append(el);}
   }
   const x=Math.max(135,Math.min(scene.width-135,nearest.x));const y=Math.max(75,Math.min(scene.height-385,nearest.y-190));card.style.left=x+'px';card.style.top=y+'px';card.style.setProperty('--beam',Math.max(20,nearest.y-y-165)+'px');card.dataset.propertyId=nearest.id;
  });

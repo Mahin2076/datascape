@@ -43,7 +43,7 @@ export function normalizeOSM(data){
  }
  return features;
 }
-export function sceneFeatures(features,center){const project=projection(center);return features.map(f=>({...f,points:f.points.map(project.toXY),rings:f.rings?.map(r=>r.map(project.toXY))})).filter(f=>{
+export function sceneFeatures(features,center){const project=projection(center);return features.map(f=>({...f,points:f.points.map(project.toXY),shoreline:f.shoreline?.map(project.toXY),rings:f.rings?.map(r=>r.map(project.toXY))})).filter(f=>{
  const xs=f.points.map(p=>p[0]),ys=f.points.map(p=>p[1]);return Math.max(...xs)>=0&&Math.min(...xs)<=WIDTH&&Math.max(...ys)>=0&&Math.min(...ys)<=HEIGHT;
 });}
 export function createPlaceLoader(fetcher=fetch,persistent=createPlaceCache()){
@@ -112,7 +112,14 @@ export function buildPlaceScene(features,center,{patterns,sports,sprite,atlas}){
   }
   if(f.type==='building')continue;
   trace(ctx,rings);ctx.fillStyle=f.type==='water'?'#548fad':f.type==='beach'?'#ddcd9a':patterns.grass;ctx.fill('evenodd');
-  if(f.type==='water')blockedShapes.push(rings);
+  if(f.type==='water'){
+   blockedShapes.push(rings);
+   ctx.save();trace(ctx,rings);ctx.clip('evenodd');
+   ctx.fillStyle='#70afbb';
+   for(let y=12;y<HEIGHT;y+=28)for(let x=12+(Math.floor(y/28)%2)*22;x<WIDTH;x+=56){ctx.fillRect(x,y,18,2);ctx.fillRect(x+18,y-2,7,2);}
+   ctx.restore();
+   if(f.shoreline){ctx.beginPath();f.shoreline.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.strokeStyle='#ddd7b9';ctx.lineWidth=5;ctx.stroke();}
+  }
   if(f.type==='park'){
    for(let y=16;y<HEIGHT;y+=48)for(let x=16;x<WIDTH;x+=48){const px=x+(Math.sin(x+y)*12),py=y+(Math.cos(x-y)*12);if(rings.reduce((v,r)=>v!==contains([px,py],r),false)&&((x+y+Number(f.id))%7<2))trees.push([px,py]);}
   }
