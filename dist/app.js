@@ -13,7 +13,7 @@ const selection = createSelectionStore({ cityIds: cities.map(c=>c.id), years: db
 const residentEvents = new EventTarget();
 let selectedResident = null, residentHits = [], syncingSelection = false;
 const streetPositions = new Map();
-const cityMap = createCityOverview({ reducedMotion: reduced, onEnter:()=>enterStreet(), onError:()=>{overview=true;refresh();toast('City artwork unavailable. The comparison map still works.');} });
+const cityMap = createCityOverview({ reducedMotion: reduced, onEnter:()=>enterStreet(), onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
 function emitSelection(){
  if(syncingSelection)return;
  selection.set({cityId:cities[current].id,year:db.years[year]});

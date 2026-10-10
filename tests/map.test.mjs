@@ -16,28 +16,26 @@ test('selection preserves scenarios across city/year changes and prevents extern
  assert.equal(calls,2);stop();store.set({year:2021});assert.equal(calls,2);
 });
 
-const ctx=new Proxy({}, {get:(obj,key)=>obj[key]??(()=>{}),set:(obj,key,value)=>(obj[key]=value,true)});
-function setup(reducedMotion=false){
- let instance;globalThis.Image=class{constructor(){instance=this;}};
- let entered=0,failed=0;
- const map=createCityOverview({reducedMotion,onEnter:()=>entered++,onError:()=>failed++});
- return {map,load:()=>instance.onload(),fail:()=>instance.onerror(),entered:()=>entered,failed:()=>failed};
+function setup(){
+ let clicks,errors=0,entered=0,zoom=12;
+ const element={hidden:true,dataset:{}};
+ globalThis.ResizeObserver=class{observe(){}};
+ const map={on(event,fn){clicks=fn;return this;},setView(){return this;},invalidateSize(){},setZoom(z){zoom=z;},getZoom(){return zoom;},panBy(){}};
+ const layer={on(){return this;},addTo(){return this;}};
+ const leaflet={map:()=>map,tileLayer:()=>layer};
+ const controller=createCityOverview({element,leaflet,onEnter:()=>entered++,onError:()=>errors++});
+ return {controller,element,click:()=>clicks({latlng:{lat:37.77,lng:-122.42}}),entered:()=>entered,zoom:()=>zoom};
 }
-function settle(map){for(let i=0;i<140;i++)map.draw(ctx,1200,800,180,.016,i*16);}
-test('zoom stays on the overview; any map click enters once and reopening works',()=>{
- const s=setup();s.map.open();assert.equal(s.map.click(500,300),false);
- s.load();for(let i=0;i<8;i++)s.map.changeZoom(1);settle(s.map);
- assert.equal(s.entered(),0);assert.equal(s.map.active,true);
- assert.equal(s.map.click(500,300),true);assert.equal(s.entered(),1);
- assert.equal(s.map.click(500,300),false);assert.equal(s.entered(),1);
- s.map.open();settle(s.map);s.map.changeZoom(-1);settle(s.map);
- assert.equal(s.map.active,true);s.map.enter();assert.equal(s.entered(),2);
+test('live map opens, zooms without entering, clicks enter once, and reopens',()=>{
+ const s=setup();assert.equal(s.controller.open(),true);assert.equal(s.element.hidden,false);
+ s.controller.changeZoom(1);assert.equal(s.zoom(),13);assert.equal(s.entered(),0);
+ s.click();assert.equal(s.entered(),1);assert.equal(s.element.hidden,true);assert.equal(s.controller.click(),false);
+ s.controller.open();assert.equal(s.element.hidden,false);s.controller.enter();assert.equal(s.entered(),2);
 });
-test('reduced motion entry and image failure have deterministic fallbacks',()=>{
- const s=setup(true);s.load();s.map.open();s.map.enter();s.map.draw(ctx,390,844,220,.016,0);assert.equal(s.entered(),1);
- const broken=setup();broken.map.open();broken.fail();assert.equal(broken.map.active,false);assert.equal(broken.failed(),1);assert.equal(broken.map.open(),false);
+test('missing map library falls back without blocking the app',()=>{
+ let errors=0;const map=createCityOverview({element:{hidden:true},leaflet:null,onEnter(){},onError(){errors++;}});
+ assert.equal(map.open(),false);assert.equal(map.active,false);assert.equal(errors,1);
 });
-
 
 test('street camera cannot expose empty space at world edges on mobile or desktop',async()=>{
  const {streetCamera}=await import('../dist/map/geometry.js');

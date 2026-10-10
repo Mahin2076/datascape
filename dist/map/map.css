@@ -36,3 +36,12 @@
 #inspect kbd,#inspect small,#inspect .arrow{display:none}
 #game[data-view=street] #inspect b{font-size:10px}
 @media(max-width:650px){#game[data-view=street] #nearby{left:12px;transform:none}#game[data-view=street] #inspect{max-width:230px}}
+/* Live geographic overview. The pixel world remains a separate illustrative view. */
+#cityMap{position:absolute;top:49px;bottom:64px;left:0;right:0;z-index:1;background:#dce5de;font-family:inherit}
+#cityMap .leaflet-control-attribution{font-size:9px;background:#fffef2ed;padding:3px 6px}
+#mapNavigation,#mapCaption,.zoom{z-index:3}
+#game[data-view=city] #mapAttribution{display:none}
+#game[data-view=city] .zoom{bottom:98px}
+#game[data-view=city] #mapCaption{bottom:98px}
+#cityMap[data-tile-error=true]::after{content:'Some map tiles could not load. You can still click to explore.';position:absolute;left:12px;bottom:60px;z-index:800;background:#fffef2;padding:8px;font-size:10px;pointer-events:none}
+@media(max-width:650px){#cityMap{top:43px;bottom:62px}#mapCaption{font-size:9px;left:12px;transform:none;max-width:245px;white-space:normal}#cityMap .leaflet-control-attribution{font-size:8px}}

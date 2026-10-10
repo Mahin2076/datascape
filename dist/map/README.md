@@ -1,6 +1,6 @@
 # Map branch handoff
 
-`feature/map-zoom` implements the first San Francisco map milestone. The city overview uses the existing Simtra SF tile image; clicking the city map opens DataScape's illustrative scene. It is not a geospatial reconstruction of that block. Other cities keep the existing schematic comparison and street scenes.
+`feature/map-zoom` implements the first San Francisco map milestone. The city overview uses Leaflet 1.9.4 with OpenStreetMap tiles; clicking the city map opens DataScape's illustrative scene. It is not a geospatial reconstruction of that block. Other cities keep the existing schematic comparison and street scenes.
 
 ## Controls
 
@@ -46,13 +46,13 @@ node --check dist/app.js
 python3 -m http.server 8123 --bind 127.0.0.1 --directory dist
 ```
 
-Manual flow: SF overview → zoom in → walk → inspect → choose 2024 → return → re-enter at the same position → click a resident → compare cities. Check both desktop and mobile. Unit tests cover shared state preservation, click entry, reduced motion, map-image failure fallback, and viewport bounds at street-world edges.
+Manual flow: SF overview → zoom in → walk → inspect → choose 2024 → return → re-enter at the same position → click a resident → compare cities. Check both desktop and mobile. Unit tests cover shared state preservation, click entry, reduced motion, missing-library fallback, and viewport bounds at street-world edges.
 
-## Map provenance
+## Map provider and attribution
 
-`assets/sf_tiles.png` is copied unchanged from `Mahin2076/simtra`, commit `7a4ed2637fc65a9bb917d3764e2636cf85072338`, `frontend/assets/sf_tiles.png` (2144 × 1920). Source: https://github.com/Mahin2076/simtra/blob/7a4ed2637fc65a9bb917d3764e2636cf85072338/frontend/assets/sf_tiles.png.
+Leaflet 1.9.4 is vendored in `vendor/` with its BSD license. The overview requests only visible tiles from `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, using normal browser caching and referrers, with visible OpenStreetMap attribution. No bulk downloads, offline tile packs, or background prefetching are implemented. Provider policy: https://operations.osmfoundation.org/policies/tiles/. For a high-traffic public deployment, select a suitable hosted provider and update the tile-layer URL/attribution.
 
-The Simtra pipeline uses OpenStreetMap geography, USGS elevation, and LimeZu artwork. Original third-party terms continue to apply; this copy does not grant a new asset license. DataScape's existing artwork credits remain in README and its sources dialog. The image is used locally without calls to Simtra's hosted API. No imagery or data is fetched from that server.
+The real SF basemap is independent of the historical ACS year. Clicking any location opens the same illustrative street world; it does not reconstruct the clicked block or show address-level rent. The Simtra pixel overview has been removed. Existing pixel street artwork retains the credits in the main README.
 
 ## Simplified exploration update
 
