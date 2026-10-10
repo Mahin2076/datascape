@@ -46,3 +46,14 @@
 #cityMap[data-tile-error=true]::after{content:'Some map tiles could not load. You can still click to explore.';position:absolute;left:12px;bottom:60px;z-index:800;background:#fffef2;padding:8px;font-size:10px;pointer-events:none}
 @media(max-width:650px){#cityMap{top:43px;bottom:62px}#mapCaption{font-size:9px;left:12px;transform:none;max-width:245px;white-space:normal}#cityMap .leaflet-control-attribution{font-size:8px}}
 #cityMap{background:#1c292b}#cityMap .leaflet-control-attribution{max-width:100%;font-size:8px;line-height:1.35;background:#182623e8;color:#dce6de}#cityMap .leaflet-control-attribution a{color:#ecf3e9}
+/* A short satellite dive masks the handoff into the illustrative world. */
+#mapDive{position:absolute;top:49px;bottom:64px;left:0;right:0;z-index:8;overflow:hidden;pointer-events:auto;animation:dive-veil 1.95s linear both;background:#e8ede9}
+.dive-clouds{position:absolute;inset:-45%;background:radial-gradient(ellipse at 25% 30%,#fff 0 10%,#f0f3f0cf 22%,transparent 48%),radial-gradient(ellipse at 75% 60%,#fff 0 12%,#eef2efbb 30%,transparent 55%),radial-gradient(ellipse at 40% 80%,#fff 0 10%,transparent 45%);filter:blur(18px);animation:cloud-descent 1.95s cubic-bezier(.2,.7,.2,1) both}
+.dive-clouds.second{transform:rotate(160deg);animation-direction:reverse;opacity:.75}
+@keyframes dive-veil{0%,27%{opacity:0}52%,67%{opacity:1}100%{opacity:0}}
+@keyframes cloud-descent{from{transform:scale(.65) rotate(-8deg)}to{transform:scale(2.2) rotate(5deg)}}
+#game:has(#mapDive:not([hidden])) #mapNavigation,#game:has(#mapDive:not([hidden])) #mapCaption,#game:has(#mapDive:not([hidden])) .zoom,#game:has(#mapDive:not([hidden])) #nearby{opacity:0;pointer-events:none}
+#game:has(#mapDive:not([hidden])) .hud,#game:has(#mapDive:not([hidden])) .bottom-ui{pointer-events:none}
+#game:has(#mapDive:not([hidden])) .hud *,#game:has(#mapDive:not([hidden])) .bottom-ui *{pointer-events:none}
+@media(max-width:650px){#mapDive{top:43px;bottom:62px}}
+@media(prefers-reduced-motion:reduce){#mapDive{display:none!important}.dive-clouds{animation:none}}

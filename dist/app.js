@@ -13,7 +13,7 @@ const selection = createSelectionStore({ cityIds: cities.map(c=>c.id), years: db
 const residentEvents = new EventTarget();
 let selectedResident = null, residentHits = [], syncingSelection = false;
 const streetPositions = new Map();
-const cityMap = createCityOverview({ reducedMotion: reduced, onEnter:()=>enterStreet(), onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
+const cityMap = createCityOverview({ reducedMotion: reduced, onEnter:options=>enterStreet(options?.animated), onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
 function emitSelection(){
  if(syncingSelection)return;
  selection.set({cityId:cities[current].id,year:db.years[year]});
@@ -56,9 +56,9 @@ function showComparison(){
  stopTimeline();if(!overview)streetPositions.set(current,{x:player.x,y:player.y});
  cityMap.close();overview=true;keys.clear();path=[];inspected=null;$('#inspection').hidden=true;$('#answer').hidden=true;refresh();
 }
-function enterStreet(){
+function enterStreet(animated=false){
  stopTimeline();const saved=streetPositions.get(current);travel(current);zoom=1.65;
- if(saved){player.x=saved.x;player.y=saved.y;cam.x=player.x;cam.y=player.y-28;}updateMapUI();canvas.focus();
+ if(saved){player.x=saved.x;player.y=saved.y;cam.x=player.x;cam.y=player.y-28;}if(animated){cam.z=.65;}updateMapUI();canvas.focus();
 }
 function zoomMap(delta){
  if(cityMap.active){cityMap.changeZoom(delta);return;}
@@ -130,7 +130,7 @@ function routeTo(x,y){const S=16,cols=W/S,rows=H/S,sx=Math.floor(player.x/S),sy=
 function character(c,character,x,y,dir,walking,t,scale=1){const f=walking?[1,0,1,2][Math.floor(t*8)%4]:1;c.drawImage(chars,(character%5)*48+f*16,Math.floor(character/5)*64+dir*16,16,16,Math.round(x-8*scale),Math.round(y-16*scale),16*scale,16*scale)}
 function rounded(c,x,y,w,h,r,fill){c.fillStyle=fill;c.beginPath();c.roundRect(x,y,w,h,r);c.fill()}
 function render(now){let dt=Math.min(.04,(now-last)/1000||0);last=now;if(ambient)clock+=dt;
- if(!overview&&!$('#sources').open){let dx=0,dy=0;for(const k of keys){if(k==='w'||k==='arrowup')dy-=1;if(k==='s'||k==='arrowdown')dy+=1;if(k==='a'||k==='arrowleft')dx-=1;if(k==='d'||k==='arrowright')dx+=1;}if(dx||dy)path=[];else if(path.length){let p=path[0],dist=Math.hypot(p.x-player.x,p.y-player.y);if(dist<3)path.shift();else{dx=(p.x-player.x)/dist;dy=(p.y-player.y)/dist;}}const len=Math.hypot(dx,dy);player.moving=false;if(len){let step=dt*(keys.has('shift')?110:68);player.moving=move(dx/len*step,dy/len*step);player.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?1:2):(dy<0?3:0);if(!player.moving&&path.length)path=[];}}
+ if(!overview&&!cityMap.transitioning&&!$('#sources').open){let dx=0,dy=0;for(const k of keys){if(k==='w'||k==='arrowup')dy-=1;if(k==='s'||k==='arrowdown')dy+=1;if(k==='a'||k==='arrowleft')dx-=1;if(k==='d'||k==='arrowright')dx+=1;}if(dx||dy)path=[];else if(path.length){let p=path[0],dist=Math.hypot(p.x-player.x,p.y-player.y);if(dist<3)path.shift();else{dx=(p.x-player.x)/dist;dy=(p.y-player.y)/dist;}}const len=Math.hypot(dx,dy);player.moving=false;if(len){let step=dt*(keys.has('shift')?110:68);player.moving=move(dx/len*step,dy/len*step);player.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?1:2):(dy<0?3:0);if(!player.moving&&path.length)path=[];}}
  else player.moving=false;
  // All street blocks belong to the selected city's illustrative world.
  const candidate=overview?null:nearest();if(candidate!==near){near=candidate;$('#nearby').hidden=!near;if(near)$('#nearbyName').textContent=near.title;}
@@ -162,7 +162,7 @@ function drawMini(){mc.imageSmoothingEnabled=false;mc.fillStyle='#a6b291';mc.fil
 $('#citySelect').innerHTML=cities.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');$('#citySelect').onchange=e=>{const i=+e.target.value;if(overview){current=i;showCity();}else travel(i);};
 function inspect(){if(near)showInspection(near);else toast('Walk closer to a building’s front door.');}
 const movement=['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright','shift'];
-window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)||$('#sources').open)return;let k=e.key.toLowerCase();if(k==='enter'&&cityMap.active){e.preventDefault();cityMap.enter();return;}if(k==='+'||k==='='){e.preventDefault();zoomMap(1);return;}if(k==='-'){e.preventDefault();zoomMap(-1);return;}if(movement.includes(k)){e.preventDefault();if(cityMap.active){cityMap.pan(['a','arrowleft'].includes(k)?35:['d','arrowright'].includes(k)?-35:0,['w','arrowup'].includes(k)?35:['s','arrowdown'].includes(k)?-35:0);return;}keys.add(k);if(overview)setMap();if(!e.repeat){let dx=['a','arrowleft'].includes(k)?-2:['d','arrowright'].includes(k)?2:0,dy=['w','arrowup'].includes(k)?-2:['s','arrowdown'].includes(k)?2:0;move(dx,dy)}}else if(k==='e'){inspect()}else if(k==='m'){setMap()}else if(k==='/'){e.preventDefault();openAsk()}else if(k==='escape'){inspected=null;$('#inspection').hidden=true;$('#askform').hidden=true;$('#answer').hidden=true;if(!overview)showCity()}});
+window.addEventListener('keydown',e=>{if(cityMap.transitioning){e.preventDefault();if(e.key==='Escape')cityMap.cancelTransition();return;}if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)||$('#sources').open)return;let k=e.key.toLowerCase();if(k==='enter'&&cityMap.active){e.preventDefault();cityMap.enter();return;}if(k==='+'||k==='='){e.preventDefault();zoomMap(1);return;}if(k==='-'){e.preventDefault();zoomMap(-1);return;}if(movement.includes(k)){e.preventDefault();if(cityMap.active){cityMap.pan(['a','arrowleft'].includes(k)?35:['d','arrowright'].includes(k)?-35:0,['w','arrowup'].includes(k)?35:['s','arrowdown'].includes(k)?-35:0);return;}keys.add(k);if(overview)setMap();if(!e.repeat){let dx=['a','arrowleft'].includes(k)?-2:['d','arrowright'].includes(k)?2:0,dy=['w','arrowup'].includes(k)?-2:['s','arrowdown'].includes(k)?2:0;move(dx,dy)}}else if(k==='e'){inspect()}else if(k==='m'){setMap()}else if(k==='/'){e.preventDefault();openAsk()}else if(k==='escape'){inspected=null;$('#inspection').hidden=true;$('#askform').hidden=true;$('#answer').hidden=true;if(!overview)showCity()}});
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>keys.clear());document.addEventListener('visibilitychange',()=>keys.clear());
 for(const button of document.querySelectorAll('[data-dir]')){const k={up:'w',down:'s',left:'a',right:'d'}[button.dataset.dir];button.onpointerdown=e=>{e.preventDefault();keys.add(k);path=[];move(k==='a'?-3:k==='d'?3:0,k==='w'?-3:k==='s'?3:0);button.setPointerCapture(e.pointerId);if(overview)setMap()};button.onpointerup=button.onpointercancel=()=>keys.delete(k);}
 let pointerStart=null,dragged=false,pinchDistance=null,wheelAt=0;const pointers=new Map();

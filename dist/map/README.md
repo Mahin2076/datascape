@@ -59,3 +59,7 @@ The satellite imagery is independent of the historical ACS year and is not a liv
 The large story banner, movement keypad, instruction card, city summary card, and map pin are no longer displayed. The timeline, city selector, comparison view, inspection, and sources remain. The selected city now owns the full 1536 × 1152 illustrative world (previously a 432 × 456 clip). The camera stays inside the rendered world so users do not see blank space at its outer boundary. Walking between blocks never changes the selected city. Building rent and inspection statistics use that city throughout.
 
 There are now 55 selectable sprite IDs per city. Existing IDs 1–11 retain their original city's sprites; the added blocks extend that city's IDs to 55. These are still decorative character identifiers, not real resident profiles.
+
+## Cinematic entry
+
+Clicking the satellite map triggers a 1.95-second transition: two camera flights toward the selected coordinate, a cloud veil, then a descending camera in the illustrative street world. The clicked coordinate sets the satellite camera target only, not the fictional street geometry. Repeated inputs are blocked during handoff; Escape cancels the remaining animation. Reduced-motion users enter immediately. Tests cover timed handoff, repeat-click suppression, and cancellation.
