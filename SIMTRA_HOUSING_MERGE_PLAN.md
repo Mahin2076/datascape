@@ -1,7 +1,79 @@
 # Simtra × DataScape — Housing Merge Architecture Plan
 
-**Status:** Proposed · **Date:** 2026-10-10 · **Target repo:** `Mahin2076/simtra` (this doc lives in datascape until simtra access is sorted)
-**Sponsor integration:** CREAO (AI agent platform, Developer API `/v1`)
+**Status:** Proposed; implementation not started · **Updated:** 2026-10-10 · **Current target repo:** `Mahin2076/datascape`
+**Current integration candidate:** Cala for sourced housing research, subject to coverage verification.
+
+## Current hackathon scope and three-person work split
+
+This section supersedes the Simtra-first delivery plan below for the current hackathon. The earlier architecture, CREAO integration, estimates, and phases are retained as future reference, not requirements for these three branches. The current project is built in DataScape and borrows selected Simtra map and resident interactions.
+
+### Main idea: Can You Afford to Stay?
+
+An interactive housing-data world about how rent and income changes affect people living in a city. Explore a city overview, zoom into an illustrative walkable neighborhood, inspect buildings, and click residents to see their profiles, budgets, and responses to a housing scenario—including why they responded that way. Zoom back out to compare the bigger picture.
+
+Real statistics, hypothetical household budgets, and simulated reactions must remain visibly distinct. A fictional building is not a property listing, a city median is not a neighborhood estimate, and a generated response is not testimony from a real resident.
+
+### Feature scope
+
+- Simtra-style city overview with housing patterns at the geographic resolution supported by the data.
+- Connected zoom into DataScape-style street exploration and back out, preserving the selected city and scenario.
+- Building inspection with rent statistics, historical changes, and source links.
+- Clickable resident profiles showing illustrative household details, budget impact, response to the user's scenario, and an explanation.
+- Scenario controls such as rent +10% or income +5%, with deterministic budget calculations separate from generated reactions.
+- A personal budget view showing income, rent, and the amount remaining after rent (not a full disposable-income calculation).
+- Timeline and cross-city comparisons using the existing housing features as a starting point.
+- Cala research context with citations, after verifying coverage. Missing research must not prevent the core demo from working.
+
+### Branch ownership
+
+All three feature branches belong in `Mahin2076/datascape` and should start from the same agreed base commit. These are proposed branch names; the existing local `feature/p0` branch has not been renamed by this plan.
+
+| Owner | Feature branch | Responsibilities | Owned files |
+|---|---|---|---|
+| Mahin | `feature/map-zoom` | City overview, zoom transitions, street movement, camera, building/character hit detection, final UI wiring | New `dist/map/` modules; shared `dist/app.js` and `dist/index.html` integration |
+| Teammate 1 | `feature/resident-stories` | Resident profiles, budget cards, scenario controls, resident responses and explanations, illustrative/simulated labels | New `dist/residents/` modules and component styles |
+| Teammate 2 | `feature/housing-data` | Housing datasets, pure calculations, timeline data, city comparisons, provenance, Cala coverage checks and backend research adapter | New `dist/data/` modules, `dist/assets/data.json`, and any new backend files outside `dist/` |
+
+Each teammate should expose module functions rather than editing the shared app shell. Mahin owns integration changes to `dist/app.js`, `dist/index.html`, and shared `dist/style.css`; component styles can live beside their owning modules. Coordinate any exception before editing another person's files.
+
+### Shared integration contracts
+
+Agree on these contracts before implementation, then keep identifiers and units consistent across branches:
+
+| Contract | Proposed behavior |
+|---|---|
+| Shared selection | `{ cityId, year, scenario: { rentChangePct, incomeChangePct } }`; percentage values use `10` for +10%, and `0` means no change |
+| Resident selection | Map calls `onResidentSelect(residentId)`; the resident module resolves the profile and opens its panel |
+| Housing access | Data module exposes `getHousing(cityId, year)` with monthly rent, annual household income, geography, estimate period, and source metadata |
+| Budget calculation | Data module exposes `calculateBudget({ monthlyRent, annualIncome, rentChangePct, incomeChangePct })`; return monthly income, adjusted rent, remaining amount after rent, and rent-to-income ratio, with safe handling of unavailable or nonpositive income |
+| Scenario changes | Resident controls emit selection changes; map and panels consume the same state so values stay synchronized |
+| Research results | Cala adapter returns context with citations, dates, and explicit unavailable/error states; credentials remain server-side |
+| Reaction results | Keep reaction text/explanation and generation method separate from sourced statistics; hand-authored demo responses must be labeled as scripted, not live AI |
+
+The budget denominator must be an explicitly chosen or labeled illustrative household income. Do not imply that dividing two city medians measures the burden of a particular household. Detailed neighborhood coloring requires actual neighborhood data; otherwise display city-level figures and identify the street view as illustrative.
+
+### Tasks and merge order
+
+All items below are pending. Existing DataScape timeline, inspections, and comparisons are starting points, not evidence that the new flow is complete.
+
+| ID | Owner | Task | Depends on | Acceptance evidence |
+|---|---|---|---|---|
+| H0 | All three | Agree on base commit, IDs, units, module exports, and a shared SF resident/data fixture | None | Each branch consumes the same documented fixture and contracts |
+| H1 | Mahin | Build overview → zoom into street view → zoom back out | H0 | Browser walkthrough preserves city/year/scenario and supports walking at street level |
+| H2 | Teammate 1 | Build profile, scenario controls, budget card, and response/explanation panel | H0 | Clicking a fixture resident opens the correct profile; changing the scenario updates the panel |
+| H3 | Teammate 2 | Implement sourced housing access and budget/scenario calculations | H0 | Tests independently verify units, percentage changes, zero/missing income handling, and source metadata |
+| H4 | Mahin, with teammates | Wire selection, resident click events, data, and scenario updates together | H1–H3 | One complete SF flow works without mismatched values or browser errors |
+| H5 | Teammate 1 | Connect the agreed reaction implementation | H2, H3 | Selected resident's explanation matches the current scenario; scripted versus AI behavior is disclosed |
+| H6 | Teammate 2 | Test Cala housing coverage, add backend adapter/cache and research results | H3 | Relevant query returns inspectable citations; unavailable service leaves core exploration usable; no API key in browser files |
+| H7 | All three | Extend the proven flow across cities and available years | H4 | City/year changes update map, resident context, budget, and sources consistently |
+
+Merge the shared contracts/data foundation first, then map and resident modules, then app-shell wiring. Add research after the core flow works. Treat any live AI reaction service as an explicit integration dependency; copying Simtra's panel alone does not provide its backend.
+
+### First-demo milestone
+
+**San Francisco overview → zoom into an illustrative neighborhood → walk around → click a resident → apply rent +10% → see the calculated budget impact and the resident's labeled reaction/explanation → zoom back out.**
+
+Deliver this complete path before expanding city coverage or adding Cala. Keep citations reachable, avoid using future information in historical scenarios, and distinguish working features from mocked or scripted demo behavior during handoff.
 
 ---
 
