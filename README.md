@@ -48,3 +48,5 @@ ACS releases are overlapping five-year estimates. Dollar changes are nominal, an
 - City artwork: [Modern Exteriors by LimeZu](https://limezu.itch.io/modernexteriors), purchased by the project owner. Compiled atlases are included for this application; the artwork remains subject to LimeZu’s license and is not relicensed by this repository.
 - Characters: [route1rodent / javikolog](https://route1rodent.itch.io/16x16-rpg-character-sprite-sheet), adapted from the OpenGameArt NES-style characters. This sheet is sourced from [Sim Francisco](https://simfrancisco.org/assets/sprites.png); its accompanying [CC BY-SA 3.0 license](dist/assets/SPRITES-LICENSE.txt) is included. The sheet is redistributed unchanged.
 - Data: U.S. Census Bureau, ACS five-year estimates. Table links and margins of error are included in the dataset and inspection interface.
+
+The current presentation focuses on Rincon Hill near 318 Spear Street. Select the highlighted district, walk to reveal simulated property holograms, and ask housing questions. Cala supplies separately cited neighborhood research; property prices are labeled demo data. See [DEMO.md](DEMO.md).

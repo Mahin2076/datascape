@@ -41,7 +41,7 @@ async function mockReply(route){
       assert.equal(await page.locator('.nc-transcript').isVisible(),true);
       await page.locator('.nc-transcript-head button').click();
       // A changed city clears the old residents.
-      await page.locator('#citySelect').selectOption('1');
+      await page.locator('.explore-menu summary').click();await page.locator('#housingYear').selectOption('2022');await page.locator('.explore-menu summary').click();
       await page.waitForFunction(()=>document.querySelectorAll('.nc-bubble').length===0);
       assert.equal(await page.locator('.nc-demo').count(),0);
       // An API failure must be visible; no mock dialogue is substituted.

@@ -1,9 +1,11 @@
+import {NEIGHBORHOOD,propertyForBuilding} from '../dist/neighborhood/data.js';
 import {readFile} from 'node:fs/promises';
 import {createHousingData,calculateBudget} from '../dist/data/index.js';
 import {RESIDENTS} from '../dist/residents/fixtures.js';
 import {resolveHousehold,computeBudgets} from '../dist/residents/budget.js';
 
 const data=createHousingData(JSON.parse(await readFile(new URL('../dist/assets/data.json',import.meta.url),'utf8')));
+const propertyIds=new Set(JSON.parse(await readFile(new URL('../dist/assets/rincon-map.json',import.meta.url),'utf8')).filter(f=>f.type==='building').map(f=>String(f.id)));
 export class InputError extends Error {}
 export function buildContext(input) {
   if(!input||typeof input!=='object') throw new InputError('Send a housing question.');
@@ -28,7 +30,9 @@ export function buildContext(input) {
       assumptions:{rent:resident.rent,income:resident.income},before:budgets.before,after:budgets.after,delta:budgets.delta};
   });
   const history=Array.isArray(input.history)?input.history.slice(-2).filter(q=>typeof q==='string').map(q=>q.slice(0,600)):[];
-  return {question:question.trim(),history,cityId,year,scenario:{rentChangePct,incomeChangePct},housing,residents};
+  const properties=input.neighborhoodId==='rincon-hill'&&Array.isArray(input.propertyIds)?input.propertyIds.slice(0,16).filter(id=>typeof id==='string'&&propertyIds.has(id)).map(propertyForBuilding):[];
+  const neighborhood=properties.length?{...NEIGHBORHOOD,properties,activeProperty:properties.find(p=>p.id===input.activePropertyId)||null}:null;
+  return {question:question.trim(),history,cityId,year,neighborhood,scenario:{rentChangePct,incomeChangePct},housing,residents};
 }
 
 export function validateReplies(output,context) {

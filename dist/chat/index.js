@@ -61,7 +61,7 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
     replies=captured.map(id=>({id,text:'Thinking…',name:'Neighbor',mood:'steady',pending:true}));wave=0;waveAt=performance.now();
     input.value=question;
     try{
-      const response=await fetch('/api/neighborhood-chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.any([controller.signal,AbortSignal.timeout(52000)]),body:JSON.stringify({...askedSelection,question,residentIds:captured,history})});
+      const response=await fetch('/api/neighborhood-chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.any([controller.signal,AbortSignal.timeout(80000)]),body:JSON.stringify({...askedSelection,question,residentIds:captured,history,neighborhoodId:'rincon-hill',propertyIds:scene.buildings.filter(b=>b.distance<350).map(b=>b.id).slice(0,16),activePropertyId:root.dataset.activeProperty||null})});
       const result=await response.json().catch(()=>null);
       if(!response.ok)throw Error(result?.error||'Live chat needs the DataScape server. Start the app with npm start.');
       if(token!==version)return false;
@@ -71,6 +71,12 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
       shell.dataset.replyCount=String(replies.length);shell.dataset.method='ai';
       transcriptBody.append(el('p','nc-question',question));
       for(const reply of replies){const card=el('article',`nc-reply nc-${reply.mood}`);card.append(el('b','',reply.name),el('p','',reply.text),el('small','',`Illustrative rent ${dollars(reply.budget.rent)} · left after rent ${dollars(reply.budget.remaining)}`));transcriptBody.append(card);}
+      const research=result.research;
+      if(research){const note=el('article','nc-reply');note.append(el('b','','Cala neighborhood research'));
+        note.append(el('p','',research.status==='available'?research.content:'No sourced Cala result is available for this question. Property examples remain simulated.'));
+        for(const source of research.sources||[]){try{const url=new URL(source.url);if(url.protocol!=='https:')continue;const a=el('a','',source.title);a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';note.append(a,el('br',''));}catch{}}
+        transcriptBody.append(note);
+      }
       transcriptToggle.hidden=false;
       return true;
     }catch(error){
@@ -104,7 +110,7 @@ export function mountNeighborhoodChat({root,map,closeProfiles}){
     scene=next;
     if(region!==scene.regionKey||scene.mode!=='street'&&replies.length){region=scene.regionKey;clearReplies();history=[];}
     const count=nearbyResidents(scene).length;
-    sub.textContent=scene.mode==='street'?`${housing?.geography||selection.cityId} · ${selection.year} · ${count} nearby voices`:'Ask a housing question. We’ll open this area and hear from nearby residents.';
+    sub.textContent=scene.mode==='street'?`Rincon Hill · ${count} nearby voices`:'Ask a housing question. We’ll open this area and hear from nearby residents.';
     updateBubbles(performance.now());
   });
 

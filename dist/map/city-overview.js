@@ -1,4 +1,5 @@
-const SF_CENTER = [37.76,-122.435];
+import {NEIGHBORHOOD} from '../neighborhood/data.js';
+const SF_CENTER = [NEIGHBORHOOD.center.lat,NEIGHBORHOOD.center.lng];
 export function createCityOverview({ onEnter, prepare, preload, onPrepare = ()=>{}, onPrepareError = ()=>{}, onReturn = ()=>{}, onError, reducedMotion = false, leaflet = globalThis.L, element = document.querySelector('#cityMap'), overlay = globalThis.document?.querySelector('#mapDive'), schedule = setTimeout, unschedule = clearTimeout }) {
   let active = false, map = null, transitioning = false, handingOff = false, timers = [], returning = false, lastZoom = 12, revision = 0, preloadTimer = null, preloading = false;
   function cancelTransition(){
@@ -8,7 +9,7 @@ export function createCityOverview({ onEnter, prepare, preload, onPrepare = ()=>
   function close(){if(handingOff){active=false;return;}cancelTransition();active=false;element.hidden=true;}
   function enter(latlng, fromZoom=false){
     if(!active||transitioning)return;
-    const target=latlng||map.getCenter();
+    const target=NEIGHBORHOOD.center;
     if(prepare){
       const ticket=++revision;transitioning=true;onPrepare(true);if(overlay)overlay.hidden=false;
       Promise.resolve().then(()=>prepare(target)).then(prepared=>{
@@ -40,7 +41,12 @@ export function createCityOverview({ onEnter, prepare, preload, onPrepare = ()=>
         maxZoom:19,keepBuffer:0,updateWhenIdle:true,
         attribution:'Imagery: <a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9">Esri</a>, Vantor, Earthstar Geographics, GIS User Community'
       }).on('tileerror',()=>{element.dataset.tileError='true';}).on('tileload',()=>{delete element.dataset.tileError;}).addTo(map);
-      map.on('click',e=>enter(e.latlng));
+      if(leaflet.rectangle){
+        const district=leaflet.rectangle(NEIGHBORHOOD.bounds,{color:'#72ead4',weight:2,fillColor:'#36cdb3',fillOpacity:.18}).addTo(map);
+        district.bindTooltip('RINCON HILL · Enter neighborhood',{permanent:true,direction:'center',className:'rh-map-label'});
+        district.on('click',event=>{leaflet.DomEvent.stopPropagation(event);enter(NEIGHBORHOOD.center);});
+      }
+      map.on('click',()=>enter(NEIGHBORHOOD.center));
       map.on('moveend',()=>{
         if(preloadTimer!==null)unschedule(preloadTimer);
         if(preload&&active&&!transitioning&&map.getZoom()>=15&&map.getZoom()<17){
@@ -51,7 +57,7 @@ export function createCityOverview({ onEnter, prepare, preload, onPrepare = ()=>
       const link=globalThis.location?.hash.match(/^#map=(\d+)\/(-?[\d.]+)\/(-?[\d.]+)$/);
       const lat=Number(link?.[2]),lng=Number(link?.[3]);
       const valid=link&&lat>=37.70&&lat<=37.815&&lng>=-122.52&&lng<=-122.35;
-      map.setView(valid?[lat,lng]:SF_CENTER,valid?Math.max(11,Math.min(18,Number(link[1]))):12,{animate:false});
+      map.setView(valid?[lat,lng]:SF_CENTER,valid?Math.max(11,Math.min(18,Number(link[1]))):15,{animate:false});
       new ResizeObserver(()=>{if(active)map.invalidateSize({pan:false});}).observe(element);
     }
     map.invalidateSize({pan:false});return true;
@@ -78,7 +84,7 @@ export function createCityOverview({ onEnter, prepare, preload, onPrepare = ()=>
     changeZoom(delta){if(active&&!transitioning)map.setZoom(map.getZoom()+(delta>0?1:-1));},
     pan(dx,dy){if(active&&!transitioning)map.panBy([-dx,-dy],{animate:false});},
     click(){if(!active||transitioning)return false;enter();return true;},
-    reset(){if(map)map.setView(SF_CENTER,12,{animate:false});},
+    reset(){if(map)map.setView(SF_CENTER,15,{animate:false});},
     draw(){return active;},
   };
 }
