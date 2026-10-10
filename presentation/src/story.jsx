@@ -76,9 +76,9 @@ export function buildSlides(home) {
       id: 'title',
       panel: 'hero',
       sat: { ...SF_WIDE, duration: 0 },
-      headline: 'Can you afford to stay?',
-      body: 'We were curious what a rent number actually means for the people who pay it. DataScape is how we went looking.',
-      notes: 'This is the prompt in one line: the topic we were curious about is rent, and the creative part is that you walk through it.',
+      headline: 'DataScape',
+      body: 'We were curious what a rent number actually means for the people who pay it, so we built a way to go looking.',
+      notes: 'Open on the name. The topic we were curious about is rent, and the creative part is that you walk through it. The question “Can you afford to stay?” is saved for the last slide.',
     },
     {
       id: 'chart',

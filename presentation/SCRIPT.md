@@ -5,7 +5,7 @@ Arrow keys move between slides; `n` shows the notes.
 
 ## Speaker 1 (slides 1–5)
 
-1. **Can you afford to stay?** We wanted to know what a rent number actually means for the people paying it. DataScape is how we went looking.
+1. **DataScape.** We wanted to know what a rent number actually means for the people paying it. So we built a way to go looking.
 2. **Rent is usually a number on a chart.** San Francisco's median rent has climbed to $2,476 a month. That's a real number, but it's hard to picture anyone behind it.
 3. **So we put it on a street.** Click anywhere in San Francisco and DataScape builds that block from real map data. The roads, parks and courts are where they really are, and people walk around them.
 4. **This is Tasha.** Tasha runs a bakery and has rented on this street for nine years, with a teenage kid at home. Tasha isn't a real person, but the rent and income come from San Francisco's Census numbers.
