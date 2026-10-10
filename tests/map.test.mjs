@@ -17,14 +17,14 @@ test('selection preserves scenarios across city/year changes and prevents extern
 });
 
 function setup(animated=false){
- let clicks,errors=0,entered=0,zoom=12;const queue=new Map();let next=0;const overlay={hidden:true};
+ let errors=0,entered=0,returned=0,zoom=12;const events={};const queue=new Map();let next=0;const overlay={hidden:true};
  const element={hidden:true,dataset:{}};
  globalThis.ResizeObserver=class{observe(){}};
- const map={getCenter(){return [37.76,-122.435];},flyTo(){},stop(){},on(event,fn){clicks=fn;return this;},setView(){return this;},invalidateSize(){},setZoom(z){zoom=z;},getZoom(){return zoom;},panBy(){}};
+ const map={getCenter(){return [37.76,-122.435];},flyTo(center,z){zoom=z;events.zoomend?.();},stop(){},on(event,fn){events[event]=fn;return this;},setView(center,z){zoom=z;events.zoomend?.();return this;},invalidateSize(){},setZoom(z){zoom=z;events.zoomend?.();},getZoom(){return zoom;},panBy(){}};
  const layer={on(){return this;},addTo(){return this;}};
  const leaflet={map:()=>map,tileLayer:()=>layer};
- const controller=createCityOverview({element,leaflet,overlay,reducedMotion:!animated,schedule:(fn,ms)=>{queue.set(++next,{fn,ms});return next;},unschedule:id=>queue.delete(id),onEnter:()=>entered++,onError:()=>errors++});
- return {controller,element,overlay,advance(ms){for(const [id,job] of [...queue])if(job.ms<=ms){queue.delete(id);job.fn();}},click:()=>clicks({latlng:{lat:37.77,lng:-122.42}}),entered:()=>entered,zoom:()=>zoom};
+ const controller=createCityOverview({element,leaflet,overlay,reducedMotion:!animated,schedule:(fn,ms)=>{queue.set(++next,{fn,ms});return next;},unschedule:id=>queue.delete(id),onReturn:()=>returned++,onEnter:()=>entered++,onError:()=>errors++});
+ return {controller,element,overlay,advance(ms){for(const [id,job] of [...queue])if(job.ms<=ms){queue.delete(id);job.fn();}},returned:()=>returned,click:()=>events.click({latlng:{lat:37.77,lng:-122.42}}),entered:()=>entered,zoom:()=>zoom};
 }
 test('live map opens, zooms without entering, clicks enter once, and reopens',()=>{
  const s=setup();assert.equal(s.controller.open(),true);assert.equal(s.element.hidden,false);
@@ -52,4 +52,21 @@ test('cinematic transition enters only at handoff, blocks repeat clicks, and can
  assert.equal(s.controller.click(),false);s.advance(650);assert.equal(s.entered(),0);
  s.advance(1000);assert.equal(s.entered(),1);s.advance(1800);assert.equal(s.controller.transitioning,false);assert.equal(s.overlay.hidden,true);
  s.controller.open();s.click();s.controller.close();s.advance(2000);assert.equal(s.entered(),1);assert.equal(s.overlay.hidden,true);
+});
+
+for(const animated of [false,true])test(`scroll threshold round trip preserves hysteresis (animated=${animated})`,()=>{
+ const s=setup(animated);s.controller.open();
+ for(let i=0;i<4;i++)s.controller.changeZoom(1);
+ assert.equal(s.entered(),0);
+ s.controller.changeZoom(1);s.advance(0);assert.equal(s.entered(),1);
+ s.advance(800);assert.equal(s.controller.active,false);
+ s.controller.exit();if(animated){assert.equal(s.controller.active,false);assert.equal(s.overlay.hidden,false);}
+ s.advance(800);assert.equal(s.controller.active,true);assert.equal(s.returned(),1);assert.equal(s.zoom(),15);
+ s.controller.changeZoom(1);assert.equal(s.entered(),1);
+ s.controller.changeZoom(1);s.advance(0);assert.equal(s.entered(),2);
+});
+test('canceling a return leaves the satellite map usable',()=>{
+ const s=setup(true);s.controller.open();s.click();s.advance(1800);
+ s.controller.exit();s.controller.cancelTransition();s.advance(800);
+ assert.equal(s.controller.active,true);assert.equal(s.controller.transitioning,false);assert.equal(s.returned(),1);
 });

@@ -63,3 +63,5 @@ There are now 55 selectable sprite IDs per city. Existing IDs 1–11 retain thei
 ## Cinematic entry
 
 Clicking the satellite map triggers a 1.8-second continuous zoom toward the selected coordinate. During the final 0.8 seconds, the satellite layer blends into the moving street camera. There are no clouds, flashes, or intermediate cuts. The clicked coordinate sets the satellite camera target only, not the fictional street geometry. Repeated inputs are blocked during handoff; Escape cancels the remaining animation. Reduced-motion users enter immediately. Tests cover timed handoff, repeat-click suppression, and cancellation.
+
+Scrolling or pinching to satellite zoom 17 automatically blends into the illustrative streets over 0.8 seconds. Zooming out past the street threshold reverses the blend and returns to satellite zoom 15 at the same map center; the two-level gap prevents accidental re-entry. Click entry remains available. City/year and the saved walking position survive both directions.

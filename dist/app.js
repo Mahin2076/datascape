@@ -13,7 +13,7 @@ const selection = createSelectionStore({ cityIds: cities.map(c=>c.id), years: db
 const residentEvents = new EventTarget();
 let selectedResident = null, residentHits = [], syncingSelection = false;
 const streetPositions = new Map();
-const cityMap = createCityOverview({ reducedMotion: reduced, onEnter:options=>enterStreet(options?.animated), onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
+const cityMap = createCityOverview({ reducedMotion: reduced, onEnter:options=>enterStreet(options?.animated), onReturn:()=>{overview=true;refresh();}, onError:()=>{overview=true;refresh();toast('Street map unavailable. The comparison map still works.');} });
 function emitSelection(){
  if(syncingSelection)return;
  selection.set({cityId:cities[current].id,year:db.years[year]});
@@ -61,9 +61,10 @@ function enterStreet(animated=false){
  if(saved){player.x=saved.x;player.y=saved.y;cam.x=player.x;cam.y=player.y-28;}if(animated){cam.z=1.05;}updateMapUI();canvas.focus();
 }
 function zoomMap(delta){
+ if(cityMap.transitioning)return;
  if(cityMap.active){cityMap.changeZoom(delta);return;}
  if(overview){if(delta>0)enterStreet();return;}
- if(delta<0&&zoom<=1.05){showCity();return;}
+ if(delta<0&&zoom<=1.05){if(current===0){stopTimeline();streetPositions.set(current,{x:player.x,y:player.y});keys.clear();path=[];inspected=null;$('#inspection').hidden=true;$('#answer').hidden=true;zoom=.85;cityMap.exit();}else showCity();return;}
  zoom=Math.max(.85,Math.min(3.2,zoom+delta*.25));
 }
 const buildings=[],props=[],obstacles=[];let seed=135;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};

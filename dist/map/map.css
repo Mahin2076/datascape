@@ -55,3 +55,7 @@
 #game:has(#mapDive:not([hidden])) .hud *,#game:has(#mapDive:not([hidden])) .bottom-ui *{pointer-events:none}
 @media(max-width:650px){#mapDive{top:43px;bottom:62px}}
 @media(prefers-reduced-motion:reduce){#mapDive{display:none!important}#cityMap.zoom-handoff{animation:none}}
+
+#cityMap.zoom-return{animation:map-return .8s cubic-bezier(.25,.1,.25,1) both;pointer-events:none}
+@keyframes map-return{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){#cityMap.zoom-return{animation:none}}
